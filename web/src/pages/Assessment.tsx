@@ -70,7 +70,16 @@ export default function Assessment() {
 
   // Start proctoring AFTER system check passes
   useEffect(() => {
-    if (!readyToStart || !session) return;
+    if (!readyToStart) {
+      console.log("[Assessment] Not ready to start yet");
+      return;
+    }
+    if (!session) {
+      console.log("[Assessment] Session not loaded yet");
+      return;
+    }
+
+    console.log("[Assessment] Starting proctoring for session:", session.session_id);
 
     async function startProctoring() {
       try {
@@ -87,9 +96,9 @@ export default function Assessment() {
         proctoringRef.current = sdk;
         const video = await sdk.start();
         if (video) setVideoEl(video);
-        console.log("[Assessment] Proctoring started successfully");
+        console.log("[Assessment] ✅ Proctoring started successfully");
       } catch (procErr) {
-        console.warn("[Assessment] Proctoring initialization failed:", procErr);
+        console.error("[Assessment] ❌ Proctoring initialization failed:", procErr);
       }
     }
     startProctoring();
