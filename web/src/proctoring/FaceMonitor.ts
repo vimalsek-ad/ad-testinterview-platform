@@ -44,9 +44,11 @@ export class FaceMonitor {
     // Load TensorFlow.js face detection model
     try {
       const tf = await import("@tensorflow/tfjs");
+      await tf.ready();
+      console.log("[FaceMonitor] TensorFlow.js backend:", tf.getBackend());
+
       const faceDetection = await import("@tensorflow-models/face-detection");
 
-      // Use MediaPipe FaceDetector model (runs in TF.js, not the broken MediaPipe package)
       const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
       this.detector = await faceDetection.createDetector(model, {
         runtime: "tfjs",
@@ -57,8 +59,21 @@ export class FaceMonitor {
       // Start periodic face checks
       this.intervalId = window.setInterval(() => this.detectFaces(), this.checkIntervalMs);
     } catch (err) {
-      console.warn("[FaceMonitor] ⚠️ Face detection model failed to load:", err);
-      console.warn("[FaceMonitor] Camera is active but face detection disabled");
+      console.warn("[FaceMonitor] ⚠️ Face detection model failed to load — will retry once:", err);
+      
+      // Retry after 5 seconds
+      setTimeout(async () => {
+        try {
+          const tf = await import("@tensorflow/tfjs");
+          const faceDetection = await import("@tensorflow-models/face-detection");
+          const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
+          this.detector = await faceDetection.createDetector(model, { runtime: "tfjs", maxFaces: 3 });
+          console.log("[FaceMonitor] ✅ Face detection model loaded on retry!");
+          this.intervalId = window.setInterval(() => this.detectFaces(), this.checkIntervalMs);
+        } catch (retryErr) {
+          console.warn("[FaceMonitor] ❌ Face detection unavailable. Camera active but no AI face analysis.");
+        }
+      }, 5000);
     }
 
     return this.videoElement;
