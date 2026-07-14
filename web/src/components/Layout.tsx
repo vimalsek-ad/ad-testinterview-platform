@@ -8,6 +8,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>("Team Member");
   const [newSubmissions, setNewSubmissions] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
@@ -17,6 +18,25 @@ export default function Layout({ children }: LayoutProps) {
       try {
         const res = await api.get("/api/v1/auth/me");
         setUser(res.data);
+
+        // Get user's role from their team membership
+        if (res.data.is_platform_admin) {
+          setUserRole("Platform Admin");
+        } else {
+          try {
+            const teamsRes = await api.get("/api/v1/teams");
+            const teams = teamsRes.data;
+            if (teams.length > 0) {
+              const teamDetail = await api.get(`/api/v1/teams/${teams[0].id}`);
+              const myMembership = teamDetail.data.members?.find(
+                (m: any) => m.email === res.data.email
+              );
+              if (myMembership?.role === "team_lead") setUserRole("Team Lead");
+              else if (myMembership?.role === "interviewer") setUserRole("Interviewer");
+            }
+          } catch { /* ignore */ }
+        }
+
         // Check for new submissions since last visit
         const lastVisit = localStorage.getItem("last_dashboard_visit");
         if (lastVisit) {
@@ -136,7 +156,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="px-4 py-3 border-t border-gray-700">
             <p className="text-xs text-gray-500">{user.email}</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              {user.is_platform_admin ? "Platform Admin" : "Team Member"}
+              {userRole}
             </p>
           </div>
         </aside>

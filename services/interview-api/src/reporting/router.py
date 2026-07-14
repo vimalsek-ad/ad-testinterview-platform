@@ -69,56 +69,70 @@ async def get_overview(
 
     # Sessions (scoped)
     if team_filter_assessment_ids is not None:
-        sessions_stmt = select(func.count(CandidateSession.id)).where(
-            CandidateSession.assessment_id.in_(team_filter_assessment_ids)
-        )
+        if team_filter_assessment_ids:
+            sessions_stmt = select(func.count(CandidateSession.id)).where(
+                CandidateSession.assessment_id.in_(team_filter_assessment_ids)
+            )
+            sessions_result = await db.execute(sessions_stmt)
+            total_sessions = sessions_result.scalar() or 0
+        else:
+            total_sessions = 0
     else:
         sessions_stmt = select(func.count(CandidateSession.id))
-    sessions_result = await db.execute(sessions_stmt)
-    total_sessions = sessions_result.scalar() or 0
+        sessions_result = await db.execute(sessions_stmt)
+        total_sessions = sessions_result.scalar() or 0
 
     submissions_result = await db.execute(select(func.count(CodeSubmission.id)))
     total_submissions = submissions_result.scalar() or 0
 
     # Sessions by status
     if team_filter_assessment_ids is not None:
-        status_result = await db.execute(
-            select(CandidateSession.status, func.count(CandidateSession.id))
-            .where(CandidateSession.assessment_id.in_(team_filter_assessment_ids))
-            .group_by(CandidateSession.status)
-        )
+        if team_filter_assessment_ids:
+            status_result = await db.execute(
+                select(CandidateSession.status, func.count(CandidateSession.id))
+                .where(CandidateSession.assessment_id.in_(team_filter_assessment_ids))
+                .group_by(CandidateSession.status)
+            )
+        else:
+            status_result = None
     else:
         status_result = await db.execute(
             select(CandidateSession.status, func.count(CandidateSession.id))
             .group_by(CandidateSession.status)
         )
-    status_counts = {row[0]: row[1] for row in status_result.all()}
+    status_counts = {row[0]: row[1] for row in status_result.all()} if status_result else {}
 
     # Average score — scoped to team
     if team_filter_assessment_ids is not None:
-        avg_result = await db.execute(
-            select(func.avg(CandidateSession.composite_score))
-            .where(
-                CandidateSession.composite_score.isnot(None),
-                CandidateSession.assessment_id.in_(team_filter_assessment_ids),
+        if team_filter_assessment_ids:
+            avg_result = await db.execute(
+                select(func.avg(CandidateSession.composite_score))
+                .where(
+                    CandidateSession.composite_score.isnot(None),
+                    CandidateSession.assessment_id.in_(team_filter_assessment_ids),
+                )
             )
-        )
+            avg_score = avg_result.scalar()
+        else:
+            avg_score = None
     else:
         avg_result = await db.execute(
             select(func.avg(CandidateSession.composite_score))
             .where(CandidateSession.composite_score.isnot(None))
         )
-    avg_score = avg_result.scalar()
+        avg_score = avg_result.scalar()
 
     # Decision counts — scoped to team's candidates
+    team_session_ids = []
     if team_filter_assessment_ids is not None:
         # Get session IDs for team's candidates
-        team_session_ids_result = await db.execute(
-            select(CandidateSession.id).where(
-                CandidateSession.assessment_id.in_(team_filter_assessment_ids)
+        if team_filter_assessment_ids:
+            team_session_ids_result = await db.execute(
+                select(CandidateSession.id).where(
+                    CandidateSession.assessment_id.in_(team_filter_assessment_ids)
+                )
             )
-        )
-        team_session_ids = [row[0] for row in team_session_ids_result.all()]
+            team_session_ids = [row[0] for row in team_session_ids_result.all()]
 
         if team_session_ids:
             dec_result = await db.execute(
@@ -127,10 +141,7 @@ async def get_overview(
                 .group_by(ReviewDecision.decision)
             )
         else:
-            dec_result = await db.execute(
-                select(ReviewDecision.decision, func.count(ReviewDecision.id))
-                .where(ReviewDecision.id == None)  # return empty
-            )
+            dec_result = None
     else:
         dec_result = await db.execute(
             select(ReviewDecision.decision, func.count(ReviewDecision.id))
@@ -138,11 +149,12 @@ async def get_overview(
         )
 
     decision_counts = {"select": 0, "reject": 0, "hold": 0, "pending_review": 0}
-    for row in dec_result.all():
-        decision_counts[row[0]] = row[1]
+    if dec_result:
+        for row in dec_result.all():
+            decision_counts[row[0]] = row[1]
 
     # Count candidates with no review decision yet (submitted/in_progress but not reviewed)
-    if team_filter_assessment_ids is not None:
+    if team_filter_assessment_ids is not None and team_filter_assessment_ids:
         submitted_sessions_stmt = (
             select(CandidateSession.id)
             .where(
@@ -150,13 +162,17 @@ async def get_overview(
                 CandidateSession.status.in_(["submitted", "in_progress", "scored"]),
             )
         )
+        submitted_ids_result = await db.execute(submitted_sessions_stmt)
+        submitted_session_ids = [row[0] for row in submitted_ids_result.all()]
+    elif team_filter_assessment_ids is not None:
+        submitted_session_ids = []
     else:
         submitted_sessions_stmt = (
             select(CandidateSession.id)
             .where(CandidateSession.status.in_(["submitted", "in_progress", "scored"]))
         )
-    submitted_ids_result = await db.execute(submitted_sessions_stmt)
-    submitted_session_ids = [row[0] for row in submitted_ids_result.all()]
+        submitted_ids_result = await db.execute(submitted_sessions_stmt)
+        submitted_session_ids = [row[0] for row in submitted_ids_result.all()]
 
     # Count how many of those have a review decision
     if submitted_session_ids:
