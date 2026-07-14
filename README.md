@@ -231,6 +231,22 @@ Video Recording → S3 Upload → AWS Transcribe → LLM Scoring
 
 ---
 
+## Documentation
+
+- [Problem Statement & Brief](docs/01-Problem-Statement-Brief.md)
+- [Metrics & ROI Report](docs/02-Metrics-and-ROI-Report.md)
+- [Developer Setup Guide](docs/SETUP_GUIDE.md)
+- [Backend API Documentation](docs/BACKEND_API.md)
+- [Frontend Documentation](docs/FRONTEND.md)
+
+---
+
+## Demo Recording
+
+🎬 [Watch the full platform demo](https://alterdomusgroup-my.sharepoint.com/:v:/g/personal/vimal_s_alterdomus_com/IQDlBiwB_ST3SY2-7fzPVMv3AeRUYVT5PpX_nk2FIPb566g?e=19OQjI)
+
+---
+
 ## License
 
 Internal — Alter Domus
