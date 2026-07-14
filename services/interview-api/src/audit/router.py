@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +24,9 @@ async def query_audit_log(
     user: UserAccount = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Query audit trail from PostgreSQL."""
+    """Query audit trail from PostgreSQL. Platform Admins only."""
+    if not user.is_platform_admin:
+        raise HTTPException(403, "Only Platform Admins can view audit trail")
     stmt = select(AuditLog)
 
     if actor:

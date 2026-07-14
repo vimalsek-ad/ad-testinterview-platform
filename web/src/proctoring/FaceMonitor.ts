@@ -4,7 +4,7 @@
  * Runs client-side in the browser — no server round-trips needed.
  */
 
-import { FaceMesh, Results } from "@mediapipe/face_mesh";
+import { FaceMesh, type Results } from "@mediapipe/face_mesh";
 import { ProctoringFlag } from "./types";
 
 export class FaceMonitor {

@@ -1,6 +1,6 @@
 """Reporting & Analytics API — aggregate stats on assessments, candidates, scores."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +21,9 @@ async def get_overview(
     user: UserAccount = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Platform-wide analytics overview."""
+    """Platform-wide analytics overview. Platform Admins only."""
+    if not user.is_platform_admin:
+        raise HTTPException(403, "Only Platform Admins can view analytics")
     # Total counts
     users_result = await db.execute(select(func.count(UserAccount.id)))
     total_users = users_result.scalar() or 0

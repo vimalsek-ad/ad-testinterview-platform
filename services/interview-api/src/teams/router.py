@@ -51,7 +51,10 @@ async def create_team(
     user: UserAccount = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new team. Creator is automatically added as team_lead."""
+    """Create a new team. Only Platform Admins can create teams."""
+    if not user.is_platform_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only Platform Admins can create teams")
+
     # Check if team name already exists
     existing = await db.execute(select(Team).where(Team.name == payload.name))
     if existing.scalar_one_or_none():
@@ -186,3 +189,26 @@ async def remove_member(
 
     await db.delete(membership)
     return {"message": "Member removed"}
+
+
+@router.delete("/{team_id}", status_code=status.HTTP_200_OK)
+async def delete_team(
+    team_id: UUID,
+    user: UserAccount = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a team. Only Platform Admins can delete teams."""
+    if not user.is_platform_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only Platform Admins can delete teams")
+
+    result = await db.execute(select(Team).where(Team.id == team_id))
+    team = result.scalar_one_or_none()
+    if not team:
+        raise HTTPException(404, "Team not found")
+
+    # Delete all memberships first (CASCADE should handle this, but be explicit)
+    await db.execute(
+        select(TeamMembership).where(TeamMembership.team_id == team_id)
+    )
+    await db.delete(team)
+    return {"message": f"Team '{team.name}' deleted"}

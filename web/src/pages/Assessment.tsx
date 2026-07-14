@@ -2,8 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { api } from "../lib/api";
-import { ProctoringSDK } from "../proctoring/ProctoringSDK";
-import { ProctoringFlag } from "../proctoring/types";
+import type { ProctoringFlag } from "../proctoring/types";
 
 interface TestCase {
   input: string;
@@ -45,7 +44,7 @@ export default function Assessment() {
   const [proctoringFlags, setProctoringFlags] = useState<ProctoringFlag[]>([]);
   const [proctoringWarning, setProctoringWarning] = useState("");
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
-  const proctoringRef = useRef<ProctoringSDK | null>(null);
+  const proctoringRef = useRef<any>(null);
 
   // Load session
   useEffect(() => {
@@ -56,19 +55,24 @@ export default function Assessment() {
         setQuestions(res.data.questions);
         setTimeLeft(res.data.time_limit_minutes * 60);
 
-        // Start proctoring after session loads
-        const sdk = new ProctoringSDK({
-          sessionId: res.data.session_id,
-          level: "basic", // basic = face + audio; full = also fullscreen lock
-          faceCheckIntervalMs: 3000,
-          gazeAwayThresholdMs: 10000,
-          speechThresholdMs: 5000,
-          onFlag: (flag) => setProctoringFlags((prev) => [...prev, flag]),
-          onWarning: (msg) => setProctoringWarning(msg),
-        });
-        proctoringRef.current = sdk;
-        const video = await sdk.start();
-        if (video) setVideoEl(video);
+        // Start proctoring (dynamic import to avoid crash if MediaPipe fails)
+        try {
+          const { ProctoringSDK } = await import("../proctoring/ProctoringSDK");
+          const sdk = new ProctoringSDK({
+            sessionId: res.data.session_id,
+            level: "basic",
+            faceCheckIntervalMs: 3000,
+            gazeAwayThresholdMs: 10000,
+            speechThresholdMs: 5000,
+            onFlag: (flag: ProctoringFlag) => setProctoringFlags((prev) => [...prev, flag]),
+            onWarning: (msg: string) => setProctoringWarning(msg),
+          });
+          proctoringRef.current = sdk;
+          const video = await sdk.start();
+          if (video) setVideoEl(video);
+        } catch (procErr) {
+          console.warn("Proctoring initialization failed (non-critical):", procErr);
+        }
       } catch (err: any) {
         setError("Session not found or expired");
       }

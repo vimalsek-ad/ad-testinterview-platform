@@ -28,11 +28,20 @@ export default function Teams() {
   const [memberEmail, setMemberEmail] = useState("");
   const [memberRole, setMemberRole] = useState("interviewer");
   const [error, setError] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     loadTeams();
+    checkAdmin();
   }, []);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await api.get("/api/v1/auth/me");
+      setIsAdmin(res.data.is_platform_admin);
+    } catch {}
+  };
 
   const loadTeams = async () => {
     try {
@@ -93,6 +102,18 @@ export default function Teams() {
     }
   };
 
+  const deleteTeam = async (teamId: string) => {
+    if (!confirm("Are you sure you want to delete this team? This cannot be undone.")) return;
+    try {
+      await api.delete(`/api/v1/teams/${teamId}`);
+      setSelectedTeam(null);
+      setMembers([]);
+      loadTeams();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to delete team");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
@@ -101,12 +122,14 @@ export default function Teams() {
           <button onClick={() => navigate("/dashboard")} className="text-gray-400 hover:text-white">← Back</button>
           <h1 className="text-xl font-bold">👥 Team Management</h1>
         </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium"
-        >
-          + New Team
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium"
+          >
+            + New Team
+          </button>
+        )}
       </div>
 
       {error && (
@@ -149,12 +172,22 @@ export default function Teams() {
             <>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold">Members</h2>
-                <button
-                  onClick={() => setShowAddMember(true)}
-                  className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm"
-                >
-                  + Add Member
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowAddMember(true)}
+                    className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm"
+                  >
+                    + Add Member
+                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => deleteTeam(selectedTeam)}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-sm"
+                    >
+                      🗑 Delete Team
+                    </button>
+                  )}
+                </div>
               </div>
               {members.length === 0 ? (
                 <p className="text-gray-400">No members yet.</p>
