@@ -5,7 +5,7 @@
  */
 
 import { FaceMesh, type Results } from "@mediapipe/face_mesh";
-import { ProctoringFlag } from "./types";
+import type { ProctoringFlag } from "./types";
 
 // Check if FaceMesh is available (may fail in some environments)
 const FACE_MESH_AVAILABLE = typeof FaceMesh !== 'undefined';

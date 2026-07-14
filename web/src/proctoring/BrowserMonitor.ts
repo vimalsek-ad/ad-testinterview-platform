@@ -3,7 +3,7 @@
  * No ML model needed — uses browser APIs only.
  */
 
-import { ProctoringFlag } from "./types";
+import type { ProctoringFlag } from "./types";
 
 export class BrowserMonitor {
   private flags: ProctoringFlag[] = [];

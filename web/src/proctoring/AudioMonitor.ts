@@ -3,7 +3,7 @@
  * Flags when someone is talking for more than 5 seconds continuously.
  */
 
-import { ProctoringFlag } from "./types";
+import type { ProctoringFlag } from "./types";
 
 export class AudioMonitor {
   private audioContext: AudioContext | null = null;

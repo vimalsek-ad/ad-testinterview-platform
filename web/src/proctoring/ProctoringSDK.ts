@@ -11,7 +11,7 @@
 import { BrowserMonitor } from "./BrowserMonitor";
 import { FaceMonitor } from "./FaceMonitor";
 import { AudioMonitor } from "./AudioMonitor";
-import { ProctoringConfig, ProctoringFlag } from "./types";
+import type { ProctoringConfig, ProctoringFlag } from "./types";
 import { api } from "../lib/api";
 
 export class ProctoringSDK {
@@ -135,4 +135,4 @@ export class ProctoringSDK {
   }
 }
 
-export { ProctoringFlag, ProctoringConfig } from "./types";
+export type { ProctoringFlag, ProctoringConfig } from "./types";
