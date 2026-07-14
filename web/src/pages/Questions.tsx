@@ -36,6 +36,8 @@ export default function Questions() {
   const [difficulty, setDifficulty] = useState("medium");
   const [tags, setTags] = useState("");
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["python"]);
+  const [questionType, setQuestionType] = useState<"coding" | "interview">("coding");
+  const [maxDuration, setMaxDuration] = useState(180); // seconds for interview
 
   // Test case form state
   const [tcInput, setTcInput] = useState("");
@@ -72,10 +74,11 @@ export default function Questions() {
         description,
         difficulty,
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-        supported_languages: selectedLanguages,
-        type: "coding",
+        supported_languages: questionType === "coding" ? selectedLanguages : [],
+        type: questionType,
       });
-      setTitle(""); setDescription(""); setDifficulty("medium"); setTags(""); setSelectedLanguages(["python"]);
+      setTitle(""); setDescription(""); setDifficulty("medium"); setTags("");
+      setSelectedLanguages(["python"]); setQuestionType("coding");
       setShowCreateForm(false);
       loadQuestions();
     } catch (err: any) {
@@ -141,6 +144,9 @@ export default function Questions() {
               >
                 <h3 className="font-semibold">{q.title}</h3>
                 <div className="flex gap-2 mt-2 flex-wrap">
+                  <span className={`text-xs px-2 py-0.5 rounded ${
+                    q.type === "coding" ? "bg-blue-900 text-blue-300" : "bg-purple-900 text-purple-300"
+                  }`}>{q.type === "coding" ? "💻 coding" : "🎬 interview"}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     q.difficulty === "easy" ? "bg-green-900 text-green-300" :
                     q.difficulty === "medium" ? "bg-yellow-900 text-yellow-300" :
@@ -224,22 +230,50 @@ export default function Questions() {
       {showCreateForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <form onSubmit={createQuestion} className="bg-gray-800 p-6 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Create Coding Question</h2>
+            <h2 className="text-xl font-bold mb-4">Create Question</h2>
             <div className="space-y-3">
+              {/* Question Type Selector */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuestionType("coding")}
+                  className={`flex-1 py-3 rounded font-medium text-sm ${
+                    questionType === "coding"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-400 hover:text-white"
+                  }`}
+                >
+                  💻 Coding Question
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuestionType("interview")}
+                  className={`flex-1 py-3 rounded font-medium text-sm ${
+                    questionType === "interview"
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-700 text-gray-400 hover:text-white"
+                  }`}
+                >
+                  🎬 Interview Question
+                </button>
+              </div>
+
               <input
                 type="text"
-                placeholder="Question title (e.g., Two Sum)"
+                placeholder={questionType === "coding" ? "Question title (e.g., Two Sum)" : "Question title (e.g., Explain CAP Theorem)"}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-700 text-white rounded border border-gray-600"
                 required
               />
               <textarea
-                placeholder="Description — include examples, constraints, input/output format"
+                placeholder={questionType === "coding"
+                  ? "Description — include examples, constraints, input/output format"
+                  : "Interview prompt — what should the candidate explain or demonstrate?"}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-700 text-white rounded border border-gray-600"
-                rows={8}
+                rows={6}
                 required
               />
               <select
@@ -253,51 +287,71 @@ export default function Questions() {
               </select>
               <input
                 type="text"
-                placeholder="Tags (comma-separated, e.g., arrays, hash-map)"
+                placeholder="Tags (comma-separated, e.g., arrays, system-design)"
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-700 text-white rounded border border-gray-600"
               />
-              <div>
-                <label className="text-sm text-gray-400 mb-2 block">Supported Languages (select one or more):</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: "python", label: "Python" },
-                    { id: "javascript", label: "JavaScript" },
-                    { id: "java", label: "Java" },
-                    { id: "cpp", label: "C++" },
-                    { id: "c", label: "C" },
-                    { id: "go", label: "Go" },
-                    { id: "ruby", label: "Ruby" },
-                    { id: "rust", label: "Rust" },
-                    { id: "typescript", label: "TypeScript" },
-                    { id: "csharp", label: "C#" },
-                  ].map((lang) => (
-                    <label
-                      key={lang.id}
-                      className={`flex items-center gap-2 px-3 py-2 rounded cursor-pointer text-sm ${
-                        selectedLanguages.includes(lang.id)
-                          ? "bg-blue-900/50 border border-blue-500 text-blue-300"
-                          : "bg-gray-700 border border-gray-600 text-gray-300"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedLanguages.includes(lang.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedLanguages([...selectedLanguages, lang.id]);
-                          } else {
-                            setSelectedLanguages(selectedLanguages.filter((l) => l !== lang.id));
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                      {lang.label}
-                    </label>
-                  ))}
+
+              {/* Coding-specific: Language selector */}
+              {questionType === "coding" && (
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">Supported Languages (select one or more):</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: "python", label: "Python" },
+                      { id: "javascript", label: "JavaScript" },
+                      { id: "java", label: "Java" },
+                      { id: "cpp", label: "C++" },
+                      { id: "c", label: "C" },
+                      { id: "go", label: "Go" },
+                      { id: "ruby", label: "Ruby" },
+                      { id: "rust", label: "Rust" },
+                      { id: "typescript", label: "TypeScript" },
+                      { id: "csharp", label: "C#" },
+                    ].map((lang) => (
+                      <label
+                        key={lang.id}
+                        className={`flex items-center gap-2 px-3 py-2 rounded cursor-pointer text-sm ${
+                          selectedLanguages.includes(lang.id)
+                            ? "bg-blue-900/50 border border-blue-500 text-blue-300"
+                            : "bg-gray-700 border border-gray-600 text-gray-300"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedLanguages.includes(lang.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedLanguages([...selectedLanguages, lang.id]);
+                            } else {
+                              setSelectedLanguages(selectedLanguages.filter((l) => l !== lang.id));
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        {lang.label}
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Interview-specific: Duration */}
+              {questionType === "interview" && (
+                <div>
+                  <label className="text-sm text-gray-400 mb-1 block">Max Response Duration (seconds):</label>
+                  <input
+                    type="number"
+                    value={maxDuration}
+                    onChange={(e) => setMaxDuration(Number(e.target.value))}
+                    className="w-full px-4 py-3 bg-gray-700 text-white rounded border border-gray-600"
+                    min={30}
+                    max={600}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Candidate records a video response (webcam + audio). Default: 3 minutes.</p>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 justify-end mt-4">
               <button type="button" onClick={() => setShowCreateForm(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
