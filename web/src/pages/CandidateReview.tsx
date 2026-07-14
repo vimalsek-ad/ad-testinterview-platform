@@ -100,8 +100,10 @@ export default function CandidateReview() {
 
   const getTimeDiff = (start: string, end: string) => {
     const diff = new Date(end).getTime() - new Date(start).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins} min`;
+    const secs = Math.floor(diff / 1000);
+    if (secs < 60) return `${secs}s`;
+    const mins = Math.floor(secs / 60);
+    if (mins < 60) return `${mins}m ${secs % 60}s`;
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   };
 

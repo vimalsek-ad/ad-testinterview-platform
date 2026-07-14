@@ -199,10 +199,10 @@ export default function Teams() {
                         <p className="text-sm text-gray-400">{m.email}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          m.role === "team_lead" ? "bg-purple-900 text-purple-300" : "bg-gray-700 text-gray-300"
+                        <span className={`text-xs px-2 py-1 rounded font-medium ${
+                          m.role === "team_lead" ? "bg-amber-900/50 text-amber-300 border border-amber-700" : "bg-blue-900/50 text-blue-300 border border-blue-700"
                         }`}>
-                          {m.role}
+                          {m.role === "team_lead" ? "👑 Team Lead" : "🎯 Interviewer"}
                         </span>
                         <button
                           onClick={() => removeMember(m.user_id)}

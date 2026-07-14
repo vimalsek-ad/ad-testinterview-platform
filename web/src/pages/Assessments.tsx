@@ -116,10 +116,17 @@ export default function Assessments() {
         {assessments.length > 0 && (
           <div className="space-y-3 mb-8">
             {assessments.map((a) => (
-              <div key={a.id} className="bg-gray-800 rounded-lg p-4 flex items-center justify-between">
+              <div key={a.id} className="bg-gray-800 rounded-lg p-4 flex items-center justify-between border border-gray-700">
                 <div>
                   <h3 className="font-semibold">{a.title}</h3>
-                  <span className="text-xs px-2 py-0.5 rounded bg-green-900 text-green-300">{a.status}</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      a.status === "published" ? "bg-green-900 text-green-300" :
+                      a.status === "draft" ? "bg-gray-700 text-gray-300" :
+                      "bg-red-900 text-red-300"
+                    }`}>{a.status}</span>
+                    <span className="text-xs text-gray-500">⏱ {a.total_time_limit_minutes} min</span>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button

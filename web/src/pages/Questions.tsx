@@ -28,6 +28,9 @@ export default function Questions() {
   const [questionDetail, setQuestionDetail] = useState<any>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAddTestCase, setShowAddTestCase] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterDifficulty, setFilterDifficulty] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
   const navigate = useNavigate();
 
   // Create question form state
@@ -131,9 +134,45 @@ export default function Questions() {
       <div className="flex max-w-7xl mx-auto p-6 gap-6">
         {/* Questions List */}
         <div className="w-[35%]">
-          <h2 className="text-lg font-semibold mb-3">{questions.length} Question{questions.length !== 1 ? "s" : ""}</h2>
-          <div className="space-y-2">
-            {questions.map((q) => (
+          {/* Search & Filters */}
+          <div className="mb-4 space-y-2">
+            <input
+              type="text"
+              placeholder="🔍 Search questions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500"
+            />
+            <div className="flex gap-2">
+              <select value={filterDifficulty} onChange={(e) => setFilterDifficulty(e.target.value)} className="flex-1 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-300">
+                <option value="all">All Difficulty</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="flex-1 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-300">
+                <option value="all">All Types</option>
+                <option value="coding">💻 Coding</option>
+                <option value="interview">🎬 Interview</option>
+              </select>
+            </div>
+          </div>
+
+          <h2 className="text-sm font-semibold text-gray-400 mb-2">
+            {questions.filter((q) => {
+              const matchSearch = !searchQuery || q.title.toLowerCase().includes(searchQuery.toLowerCase()) || q.tags?.some((t: string) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+              const matchDiff = filterDifficulty === "all" || q.difficulty === filterDifficulty;
+              const matchType = filterType === "all" || q.type === filterType;
+              return matchSearch && matchDiff && matchType;
+            }).length} of {questions.length} questions
+          </h2>
+          <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
+            {questions.filter((q) => {
+              const matchSearch = !searchQuery || q.title.toLowerCase().includes(searchQuery.toLowerCase()) || q.tags?.some((t: string) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+              const matchDiff = filterDifficulty === "all" || q.difficulty === filterDifficulty;
+              const matchType = filterType === "all" || q.type === filterType;
+              return matchSearch && matchDiff && matchType;
+            }).map((q) => (
               <div
                 key={q.id}
                 onClick={() => loadQuestionDetail(q.id)}
