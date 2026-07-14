@@ -4,6 +4,7 @@ import Editor from "@monaco-editor/react";
 import { api } from "../lib/api";
 import type { ProctoringFlag } from "../proctoring/types";
 import VideoRecorder from "../components/VideoRecorder";
+import SystemCheck from "../components/SystemCheck";
 
 interface TestCase {
   input: string;
@@ -45,6 +46,7 @@ export default function Assessment() {
   const [error, setError] = useState("");
   const [submittedQuestions, setSubmittedQuestions] = useState<Set<string>>(new Set());
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
+  const [readyToStart, setReadyToStart] = useState(false);
   const [proctoringFlags, setProctoringFlags] = useState<ProctoringFlag[]>([]);
   const [proctoringWarning, setProctoringWarning] = useState("");
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
@@ -188,6 +190,17 @@ export default function Assessment() {
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-white text-xl">Loading assessment...</div>
       </div>
+    );
+  }
+
+  // Show System Check gate before assessment starts
+  if (!readyToStart) {
+    return (
+      <SystemCheck
+        assessmentTitle={session.assessment_title}
+        timeLimit={session.time_limit_minutes}
+        onReady={() => setReadyToStart(true)}
+      />
     );
   }
 
