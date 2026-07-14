@@ -4,8 +4,6 @@ Enterprise coding assessment and interview platform for Alter Domus.
 
 A unified platform where hiring teams can create coding challenges, conduct proctored assessments, record video interviews, auto-score submissions with AI, and make data-driven hiring decisions — all in one place.
 
-**Repo:** https://github.com/vimalsek-ad/ad-testinterview-platform.git
-
 ---
 
 ## What's Built (16 of 16 Requirements Complete)
