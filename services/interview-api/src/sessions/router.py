@@ -50,6 +50,22 @@ class SubmitCodeRequest(BaseModel):
 
 # ─── Assessment Endpoints ─────────────────────────────────────
 
+@router.get("/assessments")
+async def list_assessments(
+    user: UserAccount = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all assessments."""
+    result = await db.execute(
+        select(Assessment).order_by(Assessment.created_at.desc())
+    )
+    assessments = result.scalars().all()
+    return [
+        {"id": str(a.id), "title": a.title, "status": a.status, "total_time_limit_minutes": a.total_time_limit_minutes}
+        for a in assessments
+    ]
+
+
 @router.post("/assessments", status_code=status.HTTP_201_CREATED)
 async def create_assessment(
     payload: AssessmentCreate,

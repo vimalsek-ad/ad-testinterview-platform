@@ -41,6 +41,8 @@ export default function Assessments() {
     try {
       const qRes = await api.get("/api/v1/questions");
       setQuestions(qRes.data);
+      const aRes = await api.get("/api/v1/assessments");
+      setAssessments(aRes.data);
     } catch { navigate("/login"); }
   };
 
@@ -57,9 +59,9 @@ export default function Assessments() {
         total_time_limit_minutes: timeLimit,
         question_ids: selectedQuestions,
       });
-      setAssessments([...assessments, res.data]);
       setShowCreate(false);
       setTitle(""); setTimeLimit(60); setSelectedQuestions([]);
+      loadData(); // Reload assessments from backend
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to create assessment");
     }
