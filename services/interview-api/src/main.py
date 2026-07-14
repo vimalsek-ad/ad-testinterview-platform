@@ -14,6 +14,7 @@ from src.teams.router import router as teams_router
 from src.proctoring.router import router as proctoring_router
 from src.interviews.router import router as interviews_router
 from src.scoring.router import router as scoring_router
+from src.reviews.router import router as reviews_router
 
 
 @asynccontextmanager
@@ -56,3 +57,4 @@ app.include_router(sessions_router)
 app.include_router(proctoring_router)
 app.include_router(interviews_router)
 app.include_router(scoring_router)
+app.include_router(reviews_router)

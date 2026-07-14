@@ -6,6 +6,7 @@ import Teams from "./pages/Teams";
 import Questions from "./pages/Questions";
 import Assessments from "./pages/Assessments";
 import Interview from "./pages/Interview";
+import Review from "./pages/Review";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/assessments" element={<Assessments />} />
         <Route path="/assessment/:token" element={<Assessment />} />
         <Route path="/interview/:token" element={<Interview />} />
+        <Route path="/review/:assessmentId" element={<Review />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>

@@ -120,12 +120,20 @@ export default function Assessments() {
                   <h3 className="font-semibold">{a.title}</h3>
                   <span className="text-xs px-2 py-0.5 rounded bg-green-900 text-green-300">{a.status}</span>
                 </div>
-                <button
-                  onClick={() => { setShowAssign(a.id); setCandidateLinks([]); }}
-                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded text-sm"
-                >
-                  Assign Candidates
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => navigate(`/review/${a.id}`)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                  >
+                    📊 Review
+                  </button>
+                  <button
+                    onClick={() => { setShowAssign(a.id); setCandidateLinks([]); }}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded text-sm"
+                  >
+                    Assign Candidates
+                  </button>
+                </div>
               </div>
             ))}
           </div>
