@@ -393,3 +393,50 @@ async def get_all_candidates(
         })
 
     return {"total": len(candidates), "candidates": candidates}
+
+
+@router.get("/team-average")
+async def get_team_average_score(
+    user: UserAccount = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get team average score for comparison with individual candidates."""
+    from src.models.team import TeamMembership
+
+    # Get user's team assessments
+    user_teams_stmt = select(TeamMembership.team_id).where(TeamMembership.user_id == user.id)
+    user_teams_result = await db.execute(user_teams_stmt)
+    user_team_ids = [row[0] for row in user_teams_result.all()]
+
+    if user_team_ids:
+        team_assessments = await db.execute(
+            select(Assessment.id).where(
+                or_(Assessment.team_id.in_(user_team_ids), Assessment.created_by == user.id)
+            )
+        )
+        team_assessment_ids = [row[0] for row in team_assessments.all()]
+    else:
+        team_assessment_ids = []
+
+    if not team_assessment_ids:
+        return {"average_score": 0, "total_scored": 0, "scores": []}
+
+    # Get all scored sessions for team
+    result = await db.execute(
+        select(CandidateSession.composite_score, CandidateSession.candidate_email)
+        .where(
+            CandidateSession.assessment_id.in_(team_assessment_ids),
+            CandidateSession.composite_score.isnot(None),
+        )
+        .order_by(CandidateSession.submitted_at)
+    )
+    rows = result.all()
+    scores = [{"score": row[0], "candidate": row[1].split("@")[0]} for row in rows]
+
+    avg = sum(r["score"] for r in scores) / len(scores) if scores else 0
+
+    return {
+        "average_score": round(avg, 1),
+        "total_scored": len(scores),
+        "scores": scores,
+    }

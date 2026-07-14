@@ -105,11 +105,10 @@ export default function Questions() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen text-white">
       {/* Header */}
       <div className="border-b border-gray-700 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate("/dashboard")} className="text-gray-400 hover:text-white">← Back</button>
           <h1 className="text-xl font-bold">📝 Question Bank</h1>
         </div>
         <button

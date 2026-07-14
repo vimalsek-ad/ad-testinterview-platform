@@ -41,6 +41,15 @@ export default function Review() {
     if (assessmentId) loadCandidates();
   }, [assessmentId]);
 
+  // Auto-select candidate if session_id is in URL search params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session");
+    if (sessionId && candidates.length > 0) {
+      loadCandidateDetail(sessionId);
+    }
+  }, [candidates]);
+
   const loadCandidates = async () => {
     try {
       const res = await api.get(`/api/v1/reviews/assessments/${assessmentId}/candidates`);

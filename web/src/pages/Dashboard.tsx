@@ -40,18 +40,14 @@ interface Overview {
 }
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
       try {
-        const userRes = await api.get("/api/v1/auth/me");
-        setUser(userRes.data);
         const [overviewRes, candidatesRes] = await Promise.all([
           api.get("/api/v1/admin/analytics/overview"),
           api.get("/api/v1/admin/analytics/candidates"),
@@ -61,270 +57,265 @@ export default function Dashboard() {
       } catch {
         navigate("/login");
       }
-      setLoading(false);
     }
     load();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
+  const getInitials = (name: string) =>
+    name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "??";
 
-  if (loading || !user) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
-  }
-
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "submitted": return "bg-green-900 text-green-300";
-      case "in_progress": return "bg-blue-900 text-blue-300";
-      case "invited": return "bg-gray-700 text-gray-300";
-      case "scored": return "bg-purple-900 text-purple-300";
-      default: return "bg-gray-700 text-gray-300";
-    }
-  };
-
-  const decisionColor = (d: string | null) => {
-    if (d === "select") return "bg-green-600 text-white";
-    if (d === "reject") return "bg-red-600 text-white";
-    if (d === "hold") return "bg-yellow-600 text-white";
-    return "bg-gray-600 text-gray-300";
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins} min ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <div className="border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold">🎯 Interview Platform</h1>
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate("/teams")} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm">👥 Teams</button>
-          <button onClick={() => navigate("/questions")} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm">📝 Questions</button>
-          <button onClick={() => navigate("/assessments")} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm">📋 Assessments</button>
-          <span className="text-gray-400 text-sm">{user.display_name}</span>
-          <button onClick={handleLogout} className="text-red-400 hover:underline text-sm">Logout</button>
-        </div>
+    <div className="p-8 text-white">
+      {/* Page Title */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold">Overview</h1>
+        <p className="text-sm text-gray-400 mt-1">A snapshot of your hiring pipeline.</p>
       </div>
 
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Overview Stats Cards */}
+      {/* Stat Cards — Row 1 */}
+      {overview && (
+        <div className="grid grid-cols-4 gap-5 mb-8">
+          <StatCard label="Candidates" value={overview.platform.total_sessions} />
+          <StatCard label="Assessments" value={overview.platform.total_assessments} />
+          <StatCard label="Questions" value={overview.platform.total_questions} />
+          <StatCard label="Avg Score" value={overview.scoring.average_score ? `${overview.scoring.average_score}%` : "—"} />
+        </div>
+      )}
+
+      {/* Decision Cards — Row 2 */}
+      {overview && (
+        <div className="grid grid-cols-4 gap-5 mb-8">
+          <DecisionCard label="Selected" value={overview.decisions.select} color="green" />
+          <DecisionCard label="On Hold" value={overview.decisions.hold} color="yellow" />
+          <DecisionCard label="Rejected" value={overview.decisions.reject} color="red" />
+          <DecisionCard label="Review Pending" value={overview.decisions.pending_review} color="blue" />
+        </div>
+      )}
+
+      {/* Charts + Recent Activity */}
+      <div className="grid grid-cols-2 gap-6 mb-8">
+        {/* Bar Chart — Candidate Pipeline */}
         {overview && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-            <StatCard label="Candidates" value={overview.platform.total_sessions} icon="👤" />
-            <StatCard label="Assessments" value={overview.platform.total_assessments} icon="📋" />
-            <StatCard label="Questions" value={overview.platform.total_questions} icon="📝" />
-            <StatCard label="Avg Score" value={overview.scoring.average_score ? `${overview.scoring.average_score}%` : "—"} icon="📊" />
-            <StatCard label="Completion" value={`${overview.scoring.completion_rate}%`} icon="✅" />
-            <StatCard label="Flags" value={overview.proctoring.total_flags} icon="🚨" color={overview.proctoring.total_flags > 0 ? "red" : "green"} />
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <h3 className="text-sm font-semibold text-gray-300 mb-4">Candidate Pipeline</h3>
+            <div className="flex items-end gap-4 h-40">
+              <BarItem label="Invited" value={overview.sessions_by_status["invited"] || 0} max={overview.platform.total_sessions} color="bg-gray-400" />
+              <BarItem label="In Progress" value={overview.sessions_by_status["in_progress"] || 0} max={overview.platform.total_sessions} color="bg-blue-500" />
+              <BarItem label="Submitted" value={overview.sessions_by_status["submitted"] || 0} max={overview.platform.total_sessions} color="bg-teal-500" />
+              <BarItem label="Scored" value={overview.sessions_by_status["scored"] || 0} max={overview.platform.total_sessions} color="bg-purple-500" />
+            </div>
           </div>
         )}
 
-        {/* Decisions Summary */}
+        {/* Proctoring / Integrity Chart */}
         {overview && (
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            <div className="bg-green-900/30 border border-green-700 rounded-lg p-4 text-center">
-              <p className="text-3xl font-bold text-green-400">{overview.decisions.select}</p>
-              <p className="text-sm text-green-300">Selected</p>
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <h3 className="text-sm font-semibold text-gray-300 mb-4">Integrity Overview</h3>
+            <div className="flex items-end gap-4 h-40">
+              <BarItem label="Clean" value={overview.proctoring.clean_sessions} max={overview.platform.total_sessions} color="bg-green-500" />
+              <BarItem label="Flagged" value={overview.proctoring.sessions_with_flags} max={overview.platform.total_sessions} color="bg-red-400" />
+              <BarItem label="Total Flags" value={overview.proctoring.total_flags} max={Math.max(overview.proctoring.total_flags, 1)} color="bg-orange-400" />
             </div>
-            <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 text-center">
-              <p className="text-3xl font-bold text-yellow-400">{overview.decisions.hold}</p>
-              <p className="text-sm text-yellow-300">On Hold</p>
-            </div>
-            <div className="bg-red-900/30 border border-red-700 rounded-lg p-4 text-center">
-              <p className="text-3xl font-bold text-red-400">{overview.decisions.reject}</p>
-              <p className="text-sm text-red-300">Rejected</p>
-            </div>
-            <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 text-center">
-              <p className="text-3xl font-bold text-blue-400">{overview.decisions.pending_review}</p>
-              <p className="text-sm text-blue-300">Review Pending</p>
+            <div className="mt-4 flex gap-4 text-xs text-gray-400">
+              <span>Completion Rate: <strong className="text-white">{overview.scoring.completion_rate}%</strong></span>
+              <span>Flagged: <strong className="text-red-400">{overview.proctoring.sessions_with_flags}</strong></span>
             </div>
           </div>
         )}
+      </div>
 
-        {/* Candidates Table + Detail */}
-        <div className="flex gap-6">
-          {/* Candidates List */}
-          <div className="w-[45%]">
-            <h2 className="text-lg font-bold mb-3">📋 All Candidates ({candidates.length})</h2>
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
-              {candidates.map((c) => (
-                <div
-                  key={c.session_id}
-                  onClick={() => setSelectedCandidate(c)}
-                  className={`p-4 rounded-lg cursor-pointer transition border ${
-                    selectedCandidate?.session_id === c.session_id
-                      ? "bg-blue-900/40 border-blue-500"
-                      : "bg-gray-800 border-gray-700 hover:border-gray-500"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold">{c.candidate_name}</p>
-                      <p className="text-xs text-gray-400">{c.candidate_email}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-lg font-bold ${(c.score ?? 0) >= 70 ? "text-green-400" : (c.score ?? 0) >= 40 ? "text-yellow-400" : "text-red-400"}`}>
-                        {c.score !== null ? `${c.score.toFixed(0)}%` : "—"}
-                      </p>
-                    </div>
+      {/* Recent Activity + Candidate Detail */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* Recent Sign-ins / Activity */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-300">Recent Candidates</h3>
+            <button onClick={() => navigate("/assessments")} className="text-xs text-blue-400 hover:underline font-medium">
+              View All
+            </button>
+          </div>
+          <div className="space-y-1">
+            {candidates.slice(0, 8).map((c) => (
+              <div
+                key={c.session_id}
+                onClick={() => setSelectedCandidate(c)}
+                className="flex items-center justify-between py-3 px-3 rounded-lg cursor-pointer hover:bg-gray-700/50 transition border-b border-gray-700/50 last:border-0"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
+                    {getInitials(c.candidate_name)}
                   </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`text-xs px-2 py-0.5 rounded ${statusColor(c.status)}`}>{c.status}</span>
-                    {c.decision && <span className={`text-xs px-2 py-0.5 rounded ${decisionColor(c.decision)}`}>{c.decision}</span>}
-                    {c.flag_count > 0 && <span className="text-xs px-2 py-0.5 rounded bg-red-900 text-red-300">🚨 {c.flag_count}</span>}
-                    {c.time_spent_minutes && <span className="text-xs text-gray-500">⏱ {c.time_spent_minutes}min</span>}
+                  <div>
+                    <p className="text-sm font-semibold text-white">{c.candidate_name}</p>
+                    <p className="text-xs text-gray-400">{c.candidate_email}</p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{c.assessment_title}</p>
                 </div>
-              ))}
-              {candidates.length === 0 && (
-                <p className="text-gray-500 text-center py-10">No candidates yet. Assign candidates from the Assessments page.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Candidate Detail */}
-          <div className="flex-1">
-            {selectedCandidate ? (
-              <CandidateDetail candidate={selectedCandidate} />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                <p>Select a candidate to view full details</p>
+                <div className="text-right">
+                  <p className="text-xs text-gray-400">{c.started_at ? timeAgo(c.started_at) : "Not started"}</p>
+                  <p className="text-xs text-gray-500">{c.assessment_title}</p>
+                </div>
               </div>
+            ))}
+            {candidates.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-8">No candidates yet</p>
             )}
           </div>
         </div>
+
+        {/* Candidate Detail Panel */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+          {selectedCandidate ? (
+            <CandidateDetail candidate={selectedCandidate} navigate={navigate} />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <p className="text-sm">Click a candidate to view details</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function StatCard({ label, value, icon, color }: { label: string; value: string | number; icon: string; color?: string }) {
+function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-      <div className="flex items-center gap-2 mb-1">
-        <span>{icon}</span>
-        <span className="text-xs text-gray-400">{label}</span>
-      </div>
-      <p className={`text-2xl font-bold ${color === "red" ? "text-red-400" : color === "green" ? "text-green-400" : "text-white"}`}>
-        {value}
-      </p>
+    <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
+      <p className="text-xs text-gray-400 uppercase tracking-wider">{label}</p>
+      <p className="text-3xl font-bold text-white mt-1">{value}</p>
     </div>
   );
 }
 
-function CandidateDetail({ candidate }: { candidate: Candidate }) {
-  const navigate = useNavigate();
+function DecisionCard({ label, value, color }: { label: string; value: number; color: string }) {
+  const colorMap: Record<string, string> = {
+    green: "border-green-700 bg-green-900/40 text-green-400",
+    yellow: "border-yellow-700 bg-yellow-900/40 text-yellow-400",
+    red: "border-red-700 bg-red-900/40 text-red-400",
+    blue: "border-blue-700 bg-blue-900/40 text-blue-400",
+  };
+  return (
+    <div className={`rounded-xl border p-5 ${colorMap[color]}`}>
+      <p className="text-3xl font-bold">{value}</p>
+      <p className="text-sm mt-1 opacity-80">{label}</p>
+    </div>
+  );
+}
 
+function BarItem({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const height = max > 0 ? Math.max((value / max) * 100, 4) : 4;
+  return (
+    <div className="flex-1 flex flex-col items-center">
+      <span className="text-xs font-bold text-gray-300 mb-1">{value}</span>
+      <div className="w-full bg-gray-700 rounded-t relative" style={{ height: "120px" }}>
+        <div
+          className={`absolute bottom-0 left-0 right-0 rounded-t ${color} transition-all`}
+          style={{ height: `${height}%` }}
+        />
+      </div>
+      <span className="text-[10px] text-gray-400 mt-2 text-center leading-tight">{label}</span>
+    </div>
+  );
+}
+
+function CandidateDetail({ candidate, navigate }: { candidate: Candidate; navigate: any }) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-gray-800 rounded-lg p-5 border border-gray-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold">{candidate.candidate_name}</h2>
-            <p className="text-sm text-gray-400">{candidate.candidate_email}</p>
-            <p className="text-xs text-gray-500 mt-1">{candidate.assessment_title}</p>
-          </div>
-          <div className="text-right">
-            <p className={`text-3xl font-bold ${(candidate.score ?? 0) >= 70 ? "text-green-400" : (candidate.score ?? 0) >= 40 ? "text-yellow-400" : "text-red-400"}`}>
-              {candidate.score !== null ? `${candidate.score.toFixed(0)}%` : "—"}
-            </p>
-            {candidate.decision && (
-              <span className={`text-xs px-3 py-1 rounded mt-1 inline-block ${
-                candidate.decision === "select" ? "bg-green-600" : candidate.decision === "reject" ? "bg-red-600" : "bg-yellow-600"
-              }`}>{candidate.decision}</span>
-            )}
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-white">{candidate.candidate_name}</h3>
+          <p className="text-xs text-gray-400">{candidate.candidate_email}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{candidate.assessment_title}</p>
         </div>
+        <div className="text-right">
+          <p className={`text-2xl font-bold ${(candidate.score ?? 0) >= 70 ? "text-green-400" : (candidate.score ?? 0) >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+            {candidate.score !== null ? `${candidate.score.toFixed(0)}%` : "—"}
+          </p>
+          {candidate.decision && (
+            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+              candidate.decision === "select" ? "bg-green-900 text-green-300" :
+              candidate.decision === "reject" ? "bg-red-900 text-red-300" :
+              "bg-yellow-900 text-yellow-300"
+            }`}>{candidate.decision}</span>
+          )}
+        </div>
+      </div>
 
-        {/* Timeline */}
-        <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
-          <div>
-            <p className="text-gray-500">Started</p>
-            <p className="text-gray-300">{candidate.started_at ? new Date(candidate.started_at).toLocaleString() : "—"}</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Submitted</p>
-            <p className="text-gray-300">{candidate.submitted_at ? new Date(candidate.submitted_at).toLocaleString() : "—"}</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Time Spent</p>
-            <p className="text-gray-300 font-semibold">{candidate.time_spent_minutes ? `${candidate.time_spent_minutes} min` : "—"}</p>
-          </div>
+      {/* Timeline */}
+      <div className="grid grid-cols-3 gap-3 text-sm bg-gray-900 rounded-lg p-3">
+        <div>
+          <p className="text-xs text-gray-500">Started</p>
+          <p className="text-gray-300 font-medium text-xs">{candidate.started_at ? new Date(candidate.started_at).toLocaleString() : "—"}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Submitted</p>
+          <p className="text-gray-300 font-medium text-xs">{candidate.submitted_at ? new Date(candidate.submitted_at).toLocaleString() : "—"}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Duration</p>
+          <p className="text-white font-bold text-xs">{candidate.time_spent_minutes ? `${candidate.time_spent_minutes} min` : "—"}</p>
         </div>
       </div>
 
       {/* Code Submissions */}
       {candidate.code_submissions.length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <h3 className="font-semibold mb-3">💻 Code Submissions ({candidate.code_submissions.length})</h3>
-          <div className="space-y-2">
-            {candidate.code_submissions.map((sub, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-gray-900 rounded p-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs bg-gray-700 px-2 py-0.5 rounded">{sub.language}</span>
-                  <span className="text-xs text-gray-400">Q: {sub.question_id.slice(0, 8)}...</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className={`text-sm font-medium ${(sub.score ?? 0) >= 70 ? "text-green-400" : "text-red-400"}`}>
-                    {sub.tests_passed}/{sub.tests_total} passed ({sub.score?.toFixed(0) ?? 0}%)
-                  </span>
-                  <span className="text-xs text-gray-500">{new Date(sub.submitted_at).toLocaleTimeString()}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div>
+          <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">Code Submissions</h4>
+          {candidate.code_submissions.map((sub, idx) => (
+            <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-0">
+              <span className="text-xs text-gray-400">{sub.language}</span>
+              <span className={`text-xs font-semibold ${(sub.score ?? 0) >= 70 ? "text-green-400" : "text-red-400"}`}>
+                {sub.tests_passed}/{sub.tests_total} ({sub.score?.toFixed(0) ?? 0}%)
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Interview Responses */}
       {candidate.interview_responses.length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <h3 className="font-semibold mb-3">🎬 Interview Responses ({candidate.interview_responses.length})</h3>
-          <div className="space-y-3">
-            {candidate.interview_responses.map((resp, idx) => (
-              <div key={idx} className="bg-gray-900 rounded p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-400">Q: {resp.question_id.slice(0, 8)}...</span>
-                  <div className="flex items-center gap-3">
-                    {resp.ai_score !== null && (
-                      <span className={`text-sm font-medium ${resp.ai_score >= 70 ? "text-green-400" : resp.ai_score >= 40 ? "text-yellow-400" : "text-red-400"}`}>
-                        AI: {resp.ai_score}%
-                      </span>
-                    )}
-                    <span className="text-xs text-gray-500">{new Date(resp.submitted_at).toLocaleTimeString()}</span>
-                  </div>
-                </div>
-                {resp.transcription && (
-                  <p className="text-sm text-gray-300 bg-gray-800 p-2 rounded border border-gray-700">
-                    📝 {resp.transcription}
-                  </p>
+        <div>
+          <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">Interview Responses</h4>
+          {candidate.interview_responses.map((resp, idx) => (
+            <div key={idx} className="py-2 border-b border-gray-700 last:border-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-400">Response {idx + 1}</span>
+                {resp.ai_score !== null && (
+                  <span className={`text-xs font-bold ${resp.ai_score >= 50 ? "text-green-400" : "text-red-400"}`}>
+                    AI: {resp.ai_score}%
+                  </span>
                 )}
-                {!resp.transcription && <p className="text-xs text-yellow-400">⏳ Processing...</p>}
               </div>
-            ))}
-          </div>
+              {resp.transcription && (
+                <p className="text-xs text-gray-300 mt-1 line-clamp-2">{resp.transcription}</p>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Proctoring */}
-      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <h3 className="font-semibold mb-2">🛡️ Proctoring</h3>
-        {candidate.flag_count === 0 ? (
-          <p className="text-green-400 text-sm">✅ No suspicious activity detected</p>
-        ) : (
-          <p className="text-red-400 text-sm">🚨 {candidate.flag_count} flag{candidate.flag_count > 1 ? "s" : ""} detected</p>
-        )}
+      {/* Proctoring + Action */}
+      <div className="flex items-center justify-between pt-2">
+        <span className={`text-xs ${candidate.flag_count === 0 ? "text-green-400" : "text-red-400"}`}>
+          {candidate.flag_count === 0 ? "✅ Clean" : `🚨 ${candidate.flag_count} flags`}
+        </span>
+        <button
+          onClick={() => navigate(`/candidate/${candidate.session_id}`)}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition"
+        >
+          Open Full Review →
+        </button>
       </div>
-
-      {/* Quick Action */}
-      <button
-        onClick={() => navigate(`/review/${candidate.assessment_id}`)}
-        className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-center"
-      >
-        📊 Open Full Review
-      </button>
     </div>
   );
 }

@@ -99,11 +99,25 @@ async def get_candidate_detail(
     if not session:
         raise HTTPException(404, "Session not found")
 
+    # Get assessment title
+    from src.models.assessment import Assessment
+    assess_result = await db.execute(select(Assessment).where(Assessment.id == session.assessment_id))
+    assessment = assess_result.scalar_one_or_none()
+
     # Code submissions
     sub_result = await db.execute(
         select(CodeSubmission).where(CodeSubmission.session_id == session_id).order_by(CodeSubmission.submitted_at.desc())
     )
     submissions = sub_result.scalars().all()
+
+    # Get question titles for submissions
+    from src.models.question import Question
+    question_titles = {}
+    for s in submissions:
+        if s.question_id not in question_titles:
+            q_result = await db.execute(select(Question.title).where(Question.id == s.question_id))
+            row = q_result.first()
+            question_titles[s.question_id] = row[0] if row else "Unknown"
 
     # Proctoring flags
     flag_result = await db.execute(
@@ -132,12 +146,14 @@ async def get_candidate_detail(
         "candidate_name": session.candidate_name,
         "status": session.status,
         "composite_score": session.composite_score,
+        "assessment_title": assessment.title if assessment else "Unknown",
         "started_at": session.started_at.isoformat() if session.started_at else None,
         "submitted_at": session.submitted_at.isoformat() if session.submitted_at else None,
         "code_submissions": [
             {
                 "id": str(s.id),
                 "question_id": str(s.question_id),
+                "question_title": question_titles.get(s.question_id, "Unknown"),
                 "language": s.language,
                 "source_code": s.source_code,
                 "score": s.score,
