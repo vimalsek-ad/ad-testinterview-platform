@@ -13,6 +13,7 @@ from src.sessions.router import router as sessions_router
 from src.teams.router import router as teams_router
 from src.proctoring.router import router as proctoring_router
 from src.interviews.router import router as interviews_router
+from src.scoring.router import router as scoring_router
 
 
 @asynccontextmanager
@@ -54,3 +55,4 @@ app.include_router(questions_router)
 app.include_router(sessions_router)
 app.include_router(proctoring_router)
 app.include_router(interviews_router)
+app.include_router(scoring_router)

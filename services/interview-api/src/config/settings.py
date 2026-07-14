@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379"
 
+    # LLM Gateway (Alter Domus AI Gateway)
+    llm_gateway_url: str = "https://api.alterdomus.dev/llm-gateway/v1"
+    llm_gateway_model: str = "eu.claude-4.5-sonnet"
+    llm_gateway_token: str = ""  # JWT Bearer token for M2M auth
+    llm_gateway_org_id: str = ""  # x-organization-id header for tenant resolution
+
     # Frontend
     frontend_url: str = "http://localhost:5173"
 
