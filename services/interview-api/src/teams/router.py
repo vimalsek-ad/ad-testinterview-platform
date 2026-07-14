@@ -145,7 +145,19 @@ async def add_member(
     user: UserAccount = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a user to the team by email."""
+    """Add a user to the team by email. Only Platform Admins and Team Leads can add members."""
+    # Check permission: must be platform admin OR team_lead of this team
+    if not user.is_platform_admin:
+        membership_result = await db.execute(
+            select(TeamMembership).where(
+                TeamMembership.team_id == team_id,
+                TeamMembership.user_id == user.id,
+                TeamMembership.role == "team_lead"
+            )
+        )
+        if not membership_result.scalar_one_or_none():
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only Team Leads and Platform Admins can add members")
+
     # Find user by email
     user_result = await db.execute(select(UserAccount).where(UserAccount.email == payload.email))
     target_user = user_result.scalar_one_or_none()
@@ -176,7 +188,18 @@ async def remove_member(
     user: UserAccount = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Remove a member from the team."""
+    """Remove a member from the team. Only Platform Admins and Team Leads can remove members."""
+    if not user.is_platform_admin:
+        membership_result = await db.execute(
+            select(TeamMembership).where(
+                TeamMembership.team_id == team_id,
+                TeamMembership.user_id == user.id,
+                TeamMembership.role == "team_lead"
+            )
+        )
+        if not membership_result.scalar_one_or_none():
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only Team Leads and Platform Admins can remove members")
+
     result = await db.execute(
         select(TeamMembership).where(
             TeamMembership.team_id == team_id,
