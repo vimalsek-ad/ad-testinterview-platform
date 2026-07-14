@@ -36,6 +36,7 @@ export class ProctoringSDK {
 
     // Layer 1: Browser monitoring (always)
     this.browserMonitor.start();
+    console.log("[Proctoring] ✅ Browser monitoring started (tab switch, paste, fullscreen)");
 
     if (this.config.level === "full") {
       // Fullscreen lockdown
@@ -50,8 +51,9 @@ export class ProctoringSDK {
       );
       try {
         videoElement = await this.faceMonitor.start();
+        console.log("[Proctoring] ✅ Face monitoring started");
       } catch (err) {
-        console.warn("Camera access denied — face monitoring disabled", err);
+        console.warn("[Proctoring] ⚠️ Camera access denied — face monitoring disabled", err);
       }
 
       // Layer 3: Audio monitoring
@@ -61,13 +63,14 @@ export class ProctoringSDK {
       );
       try {
         await this.audioMonitor.start();
+        console.log("[Proctoring] ✅ Audio monitoring started");
       } catch (err) {
-        console.warn("Microphone access denied — audio monitoring disabled", err);
+        console.warn("[Proctoring] ⚠️ Microphone access denied — audio monitoring disabled", err);
       }
     }
 
-    // Batch-send flags to backend every 10 seconds
-    this.flushIntervalId = window.setInterval(() => this.flushFlags(), 10000);
+    // Batch-send flags to backend every 3 seconds
+    this.flushIntervalId = window.setInterval(() => this.flushFlags(), 3000);
 
     return videoElement;
   }
