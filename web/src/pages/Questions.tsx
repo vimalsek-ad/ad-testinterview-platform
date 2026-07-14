@@ -38,6 +38,7 @@ export default function Questions() {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["python"]);
   const [questionType, setQuestionType] = useState<"coding" | "interview">("coding");
   const [maxDuration, setMaxDuration] = useState(180); // seconds for interview
+  const [referenceSolution, setReferenceSolution] = useState("");
 
   // Test case form state
   const [tcInput, setTcInput] = useState("");
@@ -76,9 +77,10 @@ export default function Questions() {
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
         supported_languages: questionType === "coding" ? selectedLanguages : [],
         type: questionType,
+        reference_solution: referenceSolution || undefined,
       });
       setTitle(""); setDescription(""); setDifficulty("medium"); setTags("");
-      setSelectedLanguages(["python"]); setQuestionType("coding");
+      setSelectedLanguages(["python"]); setQuestionType("coding"); setReferenceSolution("");
       setShowCreateForm(false);
       loadQuestions();
     } catch (err: any) {
@@ -362,6 +364,21 @@ export default function Questions() {
                     max={600}
                   />
                   <p className="text-xs text-gray-500 mt-1">Candidate records a video response (webcam + audio). Default: 3 minutes.</p>
+                </div>
+              )}
+
+              {/* Reference Solution (coding only) */}
+              {questionType === "coding" && (
+                <div>
+                  <label className="text-sm text-gray-400 mb-1 block">Reference Solution (optional — for reviewer comparison):</label>
+                  <textarea
+                    placeholder="Paste the ideal solution here. This will be shown to reviewers for comparison."
+                    value={referenceSolution}
+                    onChange={(e) => setReferenceSolution(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-700 text-white rounded border border-gray-600 font-mono text-sm"
+                    rows={6}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Shown in the Code Diff viewer during review. Not visible to candidates.</p>
                 </div>
               )}
             </div>

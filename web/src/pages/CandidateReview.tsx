@@ -20,6 +20,7 @@ interface CandidateData {
     id: string;
     question_id: string;
     question_title: string;
+    reference_solution: string | null;
     source_code: string;
     language: string;
     score: number | null;
@@ -429,8 +430,7 @@ export default function CandidateReview() {
                   <div>
                     <p className="text-[10px] text-purple-400 uppercase mb-1">Reference Solution:</p>
                     <pre className="bg-purple-900/20 rounded-lg p-4 text-sm text-purple-200 overflow-x-auto max-h-[400px] overflow-y-auto font-mono border border-purple-700/50">
-                      {/* Reference solution would come from question data — placeholder for now */}
-                      {"# Reference solution not available for this question.\n# Add reference_solution when creating questions to enable this feature."}
+                      {sub.reference_solution || "# No reference solution provided for this question.\n# Add one when creating/editing the question."}
                     </pre>
                   </div>
                 )}

@@ -110,14 +110,16 @@ async def get_candidate_detail(
     )
     submissions = sub_result.scalars().all()
 
-    # Get question titles for submissions
+    # Get question titles and reference solutions for submissions
     from src.models.question import Question
     question_titles = {}
+    question_references = {}
     for s in submissions:
         if s.question_id not in question_titles:
-            q_result = await db.execute(select(Question.title).where(Question.id == s.question_id))
-            row = q_result.first()
-            question_titles[s.question_id] = row[0] if row else "Unknown"
+            q_result = await db.execute(select(Question).where(Question.id == s.question_id))
+            q = q_result.scalar_one_or_none()
+            question_titles[s.question_id] = q.title if q else "Unknown"
+            question_references[s.question_id] = q.reference_solution if q else None
 
     # Proctoring flags
     flag_result = await db.execute(
@@ -154,6 +156,7 @@ async def get_candidate_detail(
                 "id": str(s.id),
                 "question_id": str(s.question_id),
                 "question_title": question_titles.get(s.question_id, "Unknown"),
+                "reference_solution": question_references.get(s.question_id),
                 "language": s.language,
                 "source_code": s.source_code,
                 "score": s.score,
