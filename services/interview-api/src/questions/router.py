@@ -72,9 +72,21 @@ async def create_question(
     user: UserAccount = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new coding or interview question."""
+    """Create a new coding or interview question. Auto-assigns to user's team if not specified."""
+    from src.models.team import TeamMembership
+
+    team_id = payload.team_id
+    # If no team_id provided, auto-assign to user's first team
+    if not team_id and not user.is_platform_admin:
+        user_teams_result = await db.execute(
+            select(TeamMembership.team_id).where(TeamMembership.user_id == user.id)
+        )
+        first_team = user_teams_result.first()
+        if first_team:
+            team_id = first_team[0]
+
     question = Question(
-        team_id=payload.team_id,
+        team_id=team_id,
         created_by=user.id,
         type=payload.type,
         title=payload.title,
@@ -95,10 +107,31 @@ async def list_questions(
     user: UserAccount = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all questions, optionally filtered by team."""
+    """List questions filtered by team membership. Platform admins see all."""
+    from sqlalchemy import or_
+    from src.models.team import TeamMembership
+
     stmt = select(Question).where(Question.is_active == True)
+
     if team_id:
+        # Explicit team filter — use it directly
         stmt = stmt.where(Question.team_id == team_id)
+    elif not user.is_platform_admin:
+        # Non-admin users see:
+        # 1. Questions belonging to their teams
+        # 2. Questions they personally created (regardless of team_id)
+        user_teams_stmt = select(TeamMembership.team_id).where(
+            TeamMembership.user_id == user.id
+        )
+        user_teams_result = await db.execute(user_teams_stmt)
+        user_team_ids = [row[0] for row in user_teams_result.all()]
+
+        conditions = [Question.created_by == user.id]
+        if user_team_ids:
+            conditions.append(Question.team_id.in_(user_team_ids))
+
+        stmt = stmt.where(or_(*conditions))
+
     result = await db.execute(stmt)
     questions = result.scalars().all()
     return [

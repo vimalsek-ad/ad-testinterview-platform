@@ -157,7 +157,14 @@ async def get_candidate_detail(
             ],
         },
         "interview_responses": [
-            {"id": str(r.id), "question_id": str(r.question_id), "filename": r.filename, "submitted_at": r.submitted_at.isoformat()}
+            {
+                "id": str(r.id),
+                "question_id": str(r.question_id),
+                "filename": r.filename,
+                "transcription": r.transcription,
+                "ai_score": r.ai_score,
+                "submitted_at": r.submitted_at.isoformat(),
+            }
             for r in responses
         ],
         "decision": {

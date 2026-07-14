@@ -74,10 +74,17 @@ async def _transcribe_and_score(response_id: str, filepath: str, question_id: st
     from sqlalchemy import select
 
     try:
-        # Step 1: Transcribe
+        # Step 1: Transcribe using AWS (S3 → Transcribe)
         logger.info(f"[Pipeline] Starting transcription for response {response_id}")
         from src.interviews.transcription import transcribe_file
-        transcription = transcribe_file(filepath)
+        import asyncio
+        # Run blocking transcription in a thread to avoid blocking the event loop
+        transcription = await asyncio.get_event_loop().run_in_executor(None, transcribe_file, filepath)
+        
+        if not transcription or transcription.strip() == "":
+            logger.warning(f"[Pipeline] Empty transcription for response {response_id} — no speech detected")
+            transcription = "[No speech detected in recording]"
+
         logger.info(f"[Pipeline] Transcription complete: '{transcription[:100]}...'")
 
         # Step 2: Get question prompt for scoring context
@@ -86,21 +93,22 @@ async def _transcribe_and_score(response_id: str, filepath: str, question_id: st
             question = q_result.scalar_one_or_none()
             question_prompt = question.description if question else "Interview question"
 
-            # Step 3: AI Score (try LLM Gateway — may fail if no VPN)
+            # Step 3: AI Score (try LLM Gateway)
             ai_score = None
-            try:
-                from src.scoring.llm_client import score_interview_response
-                scores = await score_interview_response(
-                    question_prompt=question_prompt,
-                    candidate_response=transcription,
-                )
-                if not scores.get("error"):
-                    ai_score = scores.get("composite_score", 0)
-                    logger.info(f"[Pipeline] AI Score: {ai_score} (confidence: {scores.get('confidence')})")
-                else:
-                    logger.warning(f"[Pipeline] AI scoring failed: {scores.get('reasoning')}")
-            except Exception as score_err:
-                logger.warning(f"[Pipeline] AI scoring unavailable: {score_err}")
+            if transcription and transcription != "[No speech detected in recording]":
+                try:
+                    from src.scoring.llm_client import score_interview_response
+                    scores = await score_interview_response(
+                        question_prompt=question_prompt,
+                        candidate_response=transcription,
+                    )
+                    if not scores.get("error"):
+                        ai_score = scores.get("composite_score", 0)
+                        logger.info(f"[Pipeline] AI Score: {ai_score} (confidence: {scores.get('confidence')})")
+                    else:
+                        logger.warning(f"[Pipeline] AI scoring failed: {scores.get('reasoning')}")
+                except Exception as score_err:
+                    logger.warning(f"[Pipeline] AI scoring unavailable: {score_err}")
 
             # Step 4: Update database with transcription + score
             result = await db.execute(
@@ -115,6 +123,21 @@ async def _transcribe_and_score(response_id: str, filepath: str, question_id: st
 
     except Exception as e:
         logger.error(f"[Pipeline] ❌ Failed for response {response_id}: {e}")
+        # Mark as failed in DB so frontend doesn't show "processing..." forever
+        try:
+            from src.config.database import AsyncSessionLocal
+            from src.models.interview_response import InterviewResponse
+            from sqlalchemy import select
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(InterviewResponse).where(InterviewResponse.id == uuid.UUID(response_id))
+                )
+                resp = result.scalar_one_or_none()
+                if resp:
+                    resp.transcription = f"[Transcription failed: {str(e)}]"
+                    await db.commit()
+        except Exception:
+            pass
 
 
 @router.get("/responses/{session_id}")

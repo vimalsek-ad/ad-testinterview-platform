@@ -235,3 +235,58 @@ async def delete_team(
     )
     await db.delete(team)
     return {"message": f"Team '{team.name}' deleted"}
+
+
+@router.post("/{team_id}/assign-content", status_code=status.HTTP_200_OK)
+async def assign_orphaned_content_to_team(
+    team_id: UUID,
+    user: UserAccount = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Assign all unassigned (team_id=NULL) questions and assessments created by team members to this team.
+    Only Platform Admins and Team Leads of this team can do this."""
+    from sqlalchemy import update
+    from src.models.question import Question
+    from src.models.assessment import Assessment
+
+    # Check permission
+    if not user.is_platform_admin:
+        membership_result = await db.execute(
+            select(TeamMembership).where(
+                TeamMembership.team_id == team_id,
+                TeamMembership.user_id == user.id,
+                TeamMembership.role == "team_lead"
+            )
+        )
+        if not membership_result.scalar_one_or_none():
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only Team Leads and Platform Admins can assign content")
+
+    # Get all member user_ids for this team
+    members_result = await db.execute(
+        select(TeamMembership.user_id).where(TeamMembership.team_id == team_id)
+    )
+    member_ids = [row[0] for row in members_result.all()]
+
+    if not member_ids:
+        return {"questions_updated": 0, "assessments_updated": 0}
+
+    # Assign orphaned questions (team_id IS NULL) created by team members
+    q_result = await db.execute(
+        update(Question)
+        .where(Question.team_id.is_(None), Question.created_by.in_(member_ids))
+        .values(team_id=team_id)
+    )
+
+    # Assign orphaned assessments (team_id IS NULL) created by team members
+    a_result = await db.execute(
+        update(Assessment)
+        .where(Assessment.team_id.is_(None), Assessment.created_by.in_(member_ids))
+        .values(team_id=team_id)
+    )
+
+    await db.flush()
+    return {
+        "questions_updated": q_result.rowcount,
+        "assessments_updated": a_result.rowcount,
+        "message": f"Assigned orphaned content to team",
+    }

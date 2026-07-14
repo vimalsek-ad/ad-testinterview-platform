@@ -104,6 +104,18 @@ export class ProctoringSDK {
     this.flushFlags();
   }
 
+  /** Pause audio monitoring (for interview questions where speech is expected). */
+  pauseAudio() {
+    this.audioMonitor?.pause();
+    console.log("[Proctoring] 🔇 Audio monitoring paused (interview question)");
+  }
+
+  /** Resume audio monitoring (for coding questions where speech is suspicious). */
+  resumeAudio() {
+    this.audioMonitor?.resume();
+    console.log("[Proctoring] 🔊 Audio monitoring resumed (coding question)");
+  }
+
   private handleFlag(flag: ProctoringFlag) {
     this.flagBuffer.push(flag);
     this.totalFlags++;

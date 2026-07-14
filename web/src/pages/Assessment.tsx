@@ -120,6 +120,16 @@ export default function Assessment() {
     return () => clearInterval(timer);
   }, [timeLeft, submitted]);
 
+  // Pause/resume audio monitoring based on question type
+  useEffect(() => {
+    if (!proctoringRef.current || !questions[currentQ]) return;
+    if (questions[currentQ].type === "interview") {
+      proctoringRef.current.pauseAudio();
+    } else {
+      proctoringRef.current.resumeAudio();
+    }
+  }, [currentQ, questions]);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;

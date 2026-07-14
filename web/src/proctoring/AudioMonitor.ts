@@ -1,6 +1,7 @@
 /**
  * Audio Monitoring — detects speech using Web Audio API energy analysis.
  * Flags when someone is talking for more than 5 seconds continuously.
+ * Can be paused during interview questions where speech is expected.
  */
 
 import type { ProctoringFlag } from "./types";
@@ -11,6 +12,7 @@ export class AudioMonitor {
   private stream: MediaStream | null = null;
   private intervalId: number | null = null;
   private onFlag: (flag: ProctoringFlag) => void;
+  private paused = false;
 
   // State
   private speechStartTime: number | null = null;
@@ -34,7 +36,7 @@ export class AudioMonitor {
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 
     this.intervalId = window.setInterval(() => {
-      if (!this.analyser) return;
+      if (!this.analyser || this.paused) return;
       this.analyser.getByteFrequencyData(dataArray);
 
       // Calculate average energy
@@ -55,6 +57,22 @@ export class AudioMonitor {
         this.speechStartTime = null;
       }
     }, 500); // Check every 500ms
+  }
+
+  /** Pause speech detection (e.g., during interview questions where speech is expected). */
+  pause() {
+    this.paused = true;
+    this.speechStartTime = null; // Reset so no stale flag fires on resume
+  }
+
+  /** Resume speech detection (e.g., switching back to coding questions). */
+  resume() {
+    this.paused = false;
+    this.speechStartTime = null;
+  }
+
+  isPaused(): boolean {
+    return this.paused;
   }
 
   stop() {

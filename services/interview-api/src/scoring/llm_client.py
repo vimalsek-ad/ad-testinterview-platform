@@ -20,6 +20,9 @@ async def call_llm(
 ) -> str:
     """Call the LLM Gateway and return the assistant's response text.
     
+    Uses primary model (eu.claude-4.8-opus) with fallback to secondary model
+    (eu.claude-5-sonnet) if the primary fails.
+    
     Args:
         messages: OpenAI-format messages [{"role": "user", "content": "..."}]
         model: Model ID (default from settings)
@@ -43,20 +46,36 @@ async def call_llm(
     if settings.llm_gateway_org_id:
         headers["x-organization-id"] = settings.llm_gateway_org_id
 
-    payload = {
-        "model": model or settings.llm_gateway_model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
+    # Try primary model, then fallback
+    models_to_try = [model or settings.llm_gateway_model]
+    if settings.llm_gateway_fallback_model:
+        models_to_try.append(settings.llm_gateway_fallback_model)
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        result = response.json()
+    last_error = None
+    for attempt_model in models_to_try:
+        payload = {
+            "model": attempt_model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+        }
+        # Only include temperature if not using newer models that deprecated it
+        if "opus" not in attempt_model and "4.8" not in attempt_model:
+            payload["temperature"] = temperature
 
-    # Extract assistant message content
-    return result["choices"][0]["message"]["content"]
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                result = response.json()
+
+            # Extract assistant message content
+            return result["choices"][0]["message"]["content"]
+        except (httpx.HTTPError, KeyError, IndexError) as e:
+            last_error = e
+            continue  # Try fallback model
+
+    # All models failed
+    raise last_error or Exception("All LLM models failed")
 
 
 async def score_interview_response(

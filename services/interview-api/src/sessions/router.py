@@ -55,10 +55,33 @@ async def list_assessments(
     user: UserAccount = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all assessments."""
-    result = await db.execute(
-        select(Assessment).order_by(Assessment.created_at.desc())
-    )
+    """List assessments filtered by team membership. Platform admins see all."""
+    from sqlalchemy import or_
+    from src.models.team import TeamMembership
+
+    if user.is_platform_admin:
+        result = await db.execute(
+            select(Assessment).order_by(Assessment.created_at.desc())
+        )
+    else:
+        # Get user's team IDs
+        user_teams_stmt = select(TeamMembership.team_id).where(
+            TeamMembership.user_id == user.id
+        )
+        user_teams_result = await db.execute(user_teams_stmt)
+        user_team_ids = [row[0] for row in user_teams_result.all()]
+
+        # User sees: their team's assessments + assessments they created
+        conditions = [Assessment.created_by == user.id]
+        if user_team_ids:
+            conditions.append(Assessment.team_id.in_(user_team_ids))
+
+        result = await db.execute(
+            select(Assessment)
+            .where(or_(*conditions))
+            .order_by(Assessment.created_at.desc())
+        )
+
     assessments = result.scalars().all()
     return [
         {"id": str(a.id), "title": a.title, "status": a.status, "total_time_limit_minutes": a.total_time_limit_minutes}
@@ -72,9 +95,21 @@ async def create_assessment(
     user: UserAccount = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create an assessment and link questions to it."""
+    """Create an assessment and link questions to it. Auto-assigns to user's team if not specified."""
+    from src.models.team import TeamMembership
+
+    team_id = payload.team_id
+    # If no team_id provided, auto-assign to user's first team
+    if not team_id and not user.is_platform_admin:
+        user_teams_result = await db.execute(
+            select(TeamMembership.team_id).where(TeamMembership.user_id == user.id)
+        )
+        first_team = user_teams_result.first()
+        if first_team:
+            team_id = first_team[0]
+
     assessment = Assessment(
-        team_id=payload.team_id,
+        team_id=team_id,
         created_by=user.id,
         title=payload.title,
         description=payload.description,
