@@ -1,5 +1,6 @@
 /**
- * Review Dashboard — Interviewers review candidates, view scores/flags, make decisions.
+ * Review Dashboard — Lists all candidates for an assessment.
+ * Clicking a candidate opens their full Candidate Dashboard.
  */
 
 import { useEffect, useState } from "react";
@@ -18,277 +19,157 @@ interface Candidate {
   decision: string | null;
 }
 
-interface CandidateDetail {
-  session_id: string;
-  candidate_email: string;
-  candidate_name: string | null;
-  composite_score: number | null;
-  code_submissions: any[];
-  proctoring: { total_flags: number; integrity_score: number; flags: any[] };
-  interview_responses: any[];
-  decision: any | null;
-}
-
 export default function Review() {
   const { assessmentId } = useParams<{ assessmentId: string }>();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetail | null>(null);
-  const [decisionNotes, setDecisionNotes] = useState("");
+  const [assessmentTitle, setAssessmentTitle] = useState("");
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState<string>("all");
   const navigate = useNavigate();
 
   useEffect(() => {
     if (assessmentId) loadCandidates();
   }, [assessmentId]);
 
-  // Auto-select candidate if session_id is in URL search params
+  // Auto-navigate if session param present
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get("session");
-    if (sessionId && candidates.length > 0) {
-      loadCandidateDetail(sessionId);
+    if (sessionId) {
+      navigate(`/candidate/${sessionId}`, { replace: true });
     }
-  }, [candidates]);
+  }, []);
 
   const loadCandidates = async () => {
     try {
       const res = await api.get(`/api/v1/reviews/assessments/${assessmentId}/candidates`);
       setCandidates(res.data.candidates);
+      setAssessmentTitle(res.data.assessment_title || "Assessment");
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to load candidates");
     }
   };
 
-  const loadCandidateDetail = async (sessionId: string) => {
-    try {
-      const res = await api.get(`/api/v1/reviews/candidates/${sessionId}`);
-      setSelectedCandidate(res.data);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to load candidate detail");
-    }
-  };
+  const filteredCandidates = candidates.filter((c) => {
+    if (filter === "all") return true;
+    if (filter === "pending") return !c.decision;
+    return c.decision === filter;
+  });
 
-  const makeDecision = async (decision: string) => {
-    if (!selectedCandidate) return;
-    try {
-      await api.post(`/api/v1/reviews/candidates/${selectedCandidate.session_id}/decision`, {
-        decision,
-        notes: decisionNotes || undefined,
-      });
-      setDecisionNotes("");
-      loadCandidates();
-      loadCandidateDetail(selectedCandidate.session_id);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to record decision");
-    }
-  };
-
-  const getDecisionBadge = (decision: string | null) => {
-    if (!decision) return null;
-    const styles: Record<string, string> = {
-      select: "bg-green-900 text-green-300",
-      reject: "bg-red-900 text-red-300",
-      hold: "bg-yellow-900 text-yellow-300",
-    };
-    return <span className={`text-xs px-2 py-0.5 rounded ${styles[decision]}`}>{decision}</span>;
+  const stats = {
+    total: candidates.length,
+    selected: candidates.filter((c) => c.decision === "select").length,
+    rejected: candidates.filter((c) => c.decision === "reject").length,
+    hold: candidates.filter((c) => c.decision === "hold").length,
+    pending: candidates.filter((c) => !c.decision).length,
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="p-6 text-white">
       {/* Header */}
-      <div className="border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate("/dashboard")} className="text-gray-400 hover:text-white">← Back</button>
-          <h1 className="text-xl font-bold">📊 Review Dashboard</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <button onClick={() => navigate("/assessments")} className="text-gray-400 hover:text-white text-sm mb-2 block">
+            ← Back to Assessments
+          </button>
+          <h1 className="text-2xl font-bold">📊 Review: {assessmentTitle}</h1>
+          <p className="text-sm text-gray-400 mt-1">{candidates.length} candidates assigned</p>
         </div>
       </div>
 
       {error && (
-        <div className="mx-6 mt-4 bg-red-900/50 border border-red-500 text-red-300 px-4 py-2 rounded">
+        <div className="mb-4 bg-red-900/50 border border-red-500 text-red-300 px-4 py-2 rounded-lg">
           {error}
-          <button onClick={() => setError("")} className="float-right text-red-400">×</button>
         </div>
       )}
 
-      <div className="flex max-w-7xl mx-auto p-6 gap-6">
-        {/* Candidate List */}
-        <div className="w-[35%]">
-          <h2 className="text-lg font-semibold mb-3">{candidates.length} Candidates</h2>
-          <div className="space-y-2">
-            {candidates.map((c) => (
-              <div
-                key={c.session_id}
-                onClick={() => loadCandidateDetail(c.session_id)}
-                className={`p-4 rounded-lg cursor-pointer transition ${
-                  selectedCandidate?.session_id === c.session_id
-                    ? "bg-blue-900/50 border border-blue-500"
-                    : "bg-gray-800 hover:bg-gray-750 border border-gray-700"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium">{c.candidate_name || c.candidate_email}</span>
-                  {getDecisionBadge(c.decision)}
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  {c.score !== null && (
-                    <span className={`font-bold ${c.score >= 70 ? "text-green-400" : c.score >= 50 ? "text-yellow-400" : "text-red-400"}`}>
-                      {c.score.toFixed(0)}%
-                    </span>
-                  )}
-                  {c.total_flags > 0 && (
-                    <span className="text-red-400 text-xs">🚨 {c.total_flags} flags</span>
-                  )}
-                  <span className="text-gray-500 text-xs">{c.status}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Candidate Detail */}
-        <div className="flex-1">
-          {selectedCandidate ? (
-            <div className="space-y-4">
-              {/* Header */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-bold">{selectedCandidate.candidate_name || selectedCandidate.candidate_email}</h2>
-                    <p className="text-gray-400 text-sm">{selectedCandidate.candidate_email}</p>
-                  </div>
-                  <div className="text-right">
-                    {selectedCandidate.composite_score !== null && (
-                      <div className="text-3xl font-bold text-blue-400">{selectedCandidate.composite_score.toFixed(0)}%</div>
-                    )}
-                    <div className="text-sm text-gray-400">Integrity: {selectedCandidate.proctoring.integrity_score}/100</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Code Submissions */}
-              {selectedCandidate.code_submissions.length > 0 && (
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold mb-3">💻 Code Submissions</h3>
-                  {selectedCandidate.code_submissions.map((sub) => (
-                    <div key={sub.id} className="border border-gray-700 rounded p-3 mb-2">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gray-300">{sub.language}</span>
-                        <span className={sub.score >= 70 ? "text-green-400" : "text-red-400"}>
-                          {sub.tests_passed}/{sub.tests_total} passed ({sub.score?.toFixed(0)}%)
-                        </span>
-                      </div>
-                      <pre className="bg-gray-900 p-3 rounded text-xs text-gray-300 overflow-x-auto max-h-48 overflow-y-auto">
-                        {sub.source_code}
-                      </pre>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Interview Responses */}
-              {selectedCandidate.interview_responses.length > 0 && (
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold mb-3">🎬 Interview Responses ({selectedCandidate.interview_responses.length})</h3>
-                  {selectedCandidate.interview_responses.map((resp: any) => (
-                    <div key={resp.id} className="border border-gray-700 rounded p-3 mb-2">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gray-300">Question: {resp.question_id?.substring(0, 8)}...</span>
-                        <span className="text-gray-500">{new Date(resp.submitted_at).toLocaleString()}</span>
-                      </div>
-                      {resp.transcription && (
-                        <div className="mt-2">
-                          <p className="text-xs text-gray-400 mb-1">📝 Transcription:</p>
-                          <p className="text-sm text-gray-300 bg-gray-900 p-2 rounded">{resp.transcription}</p>
-                        </div>
-                      )}
-                      {resp.ai_score && (
-                        <div className="mt-2">
-                          <p className="text-xs text-gray-400">AI Score: <span className="text-blue-400 font-bold">{resp.ai_score}%</span></p>
-                        </div>
-                      )}
-                      {!resp.transcription && (
-                        <p className="text-xs text-yellow-400 mt-1">⏳ Transcription processing...</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Proctoring */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="font-semibold mb-3">
-                  🛡️ Proctoring ({selectedCandidate.proctoring.total_flags} flags)
-                </h3>
-                {selectedCandidate.proctoring.flags.length === 0 ? (
-                  <p className="text-green-400 text-sm">✅ No suspicious activity detected</p>
-                ) : (
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {selectedCandidate.proctoring.flags.map((flag: any, idx: number) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm py-1 border-b border-gray-700/50">
-                        <span className={`w-2 h-2 rounded-full ${
-                          flag.severity === "critical" ? "bg-red-500" :
-                          flag.severity === "high" ? "bg-orange-500" :
-                          flag.severity === "medium" ? "bg-yellow-500" : "bg-gray-500"
-                        }`} />
-                        <span className="text-gray-400 text-xs w-16">{flag.severity}</span>
-                        <span className="text-gray-300 flex-1">{flag.description}</span>
-                        <span className="text-gray-500 text-xs">{new Date(flag.timestamp).toLocaleTimeString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Decision Panel */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="font-semibold mb-3">📋 Decision</h3>
-                {selectedCandidate.decision ? (
-                  <div className="flex items-center gap-3">
-                    {getDecisionBadge(selectedCandidate.decision.decision)}
-                    <span className="text-gray-300 text-sm">{selectedCandidate.decision.notes}</span>
-                    <span className="text-gray-500 text-xs ml-auto">by {selectedCandidate.decision.reviewer_email}</span>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <textarea
-                      placeholder="Notes (optional) — why this decision?"
-                      value={decisionNotes}
-                      onChange={(e) => setDecisionNotes(e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 text-sm"
-                      rows={2}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => makeDecision("select")}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-medium text-sm"
-                      >
-                        ✅ Select
-                      </button>
-                      <button
-                        onClick={() => makeDecision("hold")}
-                        className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded font-medium text-sm"
-                      >
-                        ⏸ Hold
-                      </button>
-                      <button
-                        onClick={() => makeDecision("reject")}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded font-medium text-sm"
-                      >
-                        ❌ Reject
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="text-center text-gray-500 mt-20">
-              <p className="text-lg">Select a candidate to review</p>
-              <p className="text-sm mt-2">View their code, proctoring flags, and make a decision</p>
-            </div>
-          )}
-        </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-5 gap-4 mb-6">
+        <button onClick={() => setFilter("all")} className={`rounded-xl p-4 border transition ${filter === "all" ? "border-blue-500 bg-blue-900/30" : "border-gray-700 bg-gray-800 hover:border-gray-500"}`}>
+          <p className="text-2xl font-bold">{stats.total}</p>
+          <p className="text-xs text-gray-400">Total</p>
+        </button>
+        <button onClick={() => setFilter("select")} className={`rounded-xl p-4 border transition ${filter === "select" ? "border-green-500 bg-green-900/30" : "border-gray-700 bg-gray-800 hover:border-gray-500"}`}>
+          <p className="text-2xl font-bold text-green-400">{stats.selected}</p>
+          <p className="text-xs text-gray-400">Selected</p>
+        </button>
+        <button onClick={() => setFilter("hold")} className={`rounded-xl p-4 border transition ${filter === "hold" ? "border-yellow-500 bg-yellow-900/30" : "border-gray-700 bg-gray-800 hover:border-gray-500"}`}>
+          <p className="text-2xl font-bold text-yellow-400">{stats.hold}</p>
+          <p className="text-xs text-gray-400">On Hold</p>
+        </button>
+        <button onClick={() => setFilter("reject")} className={`rounded-xl p-4 border transition ${filter === "reject" ? "border-red-500 bg-red-900/30" : "border-gray-700 bg-gray-800 hover:border-gray-500"}`}>
+          <p className="text-2xl font-bold text-red-400">{stats.rejected}</p>
+          <p className="text-xs text-gray-400">Rejected</p>
+        </button>
+        <button onClick={() => setFilter("pending")} className={`rounded-xl p-4 border transition ${filter === "pending" ? "border-blue-500 bg-blue-900/30" : "border-gray-700 bg-gray-800 hover:border-gray-500"}`}>
+          <p className="text-2xl font-bold text-blue-400">{stats.pending}</p>
+          <p className="text-xs text-gray-400">Pending Review</p>
+        </button>
       </div>
+
+      {/* Candidates Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredCandidates.map((c) => (
+          <div
+            key={c.session_id}
+            onClick={() => navigate(`/candidate/${c.session_id}`)}
+            className="bg-gray-800 rounded-xl border border-gray-700 p-5 cursor-pointer hover:border-blue-500 hover:bg-gray-800/80 transition group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-300 group-hover:bg-blue-900/50 group-hover:text-blue-300 transition">
+                  {(c.candidate_name || c.candidate_email)[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{c.candidate_name || c.candidate_email.split("@")[0]}</p>
+                  <p className="text-xs text-gray-500">{c.candidate_email}</p>
+                </div>
+              </div>
+              {c.decision && (
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  c.decision === "select" ? "bg-green-900 text-green-300" :
+                  c.decision === "reject" ? "bg-red-900 text-red-300" :
+                  "bg-yellow-900 text-yellow-300"
+                }`}>{c.decision}</span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {c.score !== null ? (
+                  <span className={`text-lg font-bold ${c.score >= 70 ? "text-green-400" : c.score >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+                    {c.score.toFixed(0)}%
+                  </span>
+                ) : (
+                  <span className="text-lg font-bold text-gray-500">—</span>
+                )}
+                <span className={`text-xs px-2 py-0.5 rounded ${
+                  c.status === "submitted" ? "bg-green-900/50 text-green-300" :
+                  c.status === "in_progress" ? "bg-blue-900/50 text-blue-300" :
+                  "bg-gray-700 text-gray-400"
+                }`}>{c.status}</span>
+              </div>
+              {c.total_flags > 0 && (
+                <span className="text-xs text-red-400 flex items-center gap-1">
+                  🚨 {c.total_flags}
+                </span>
+              )}
+            </div>
+
+            {/* Open indicator */}
+            <div className="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-500 group-hover:text-blue-400 transition">
+              Click to open full review →
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filteredCandidates.length === 0 && (
+        <div className="text-center text-gray-500 py-16">
+          <p className="text-lg">No candidates match this filter</p>
+          <button onClick={() => setFilter("all")} className="text-blue-400 text-sm mt-2 hover:underline">Show all</button>
+        </div>
+      )}
     </div>
   );
 }
