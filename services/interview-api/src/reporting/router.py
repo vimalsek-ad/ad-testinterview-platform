@@ -10,8 +10,8 @@ from src.models.user import UserAccount
 from src.models.assessment import Assessment, CandidateSession
 from src.models.submission import CodeSubmission
 from src.models.question import Question
-from src.proctoring.router import _flag_store
-from src.reviews.router import _decisions
+from src.models.proctoring import ProctoringFlag
+from src.models.review import ReviewDecision
 
 router = APIRouter(prefix="/api/v1/admin/analytics", tags=["reporting"])
 
@@ -53,16 +53,22 @@ async def get_overview(
     avg_score = avg_result.scalar()
 
     # Decision counts
-    decisions = list(_decisions.values())
-    decision_counts = {
-        "select": sum(1 for d in decisions if d.get("decision") == "select"),
-        "reject": sum(1 for d in decisions if d.get("decision") == "reject"),
-        "hold": sum(1 for d in decisions if d.get("decision") == "hold"),
-    }
+    dec_result = await db.execute(
+        select(ReviewDecision.decision, func.count(ReviewDecision.id))
+        .group_by(ReviewDecision.decision)
+    )
+    decision_counts = {"select": 0, "reject": 0, "hold": 0}
+    for row in dec_result.all():
+        decision_counts[row[0]] = row[1]
 
     # Proctoring stats
-    total_flags = sum(len(flags) for flags in _flag_store.values())
-    sessions_with_flags = sum(1 for flags in _flag_store.values() if len(flags) > 0)
+    total_flags_result = await db.execute(select(func.count(ProctoringFlag.id)))
+    total_flags = total_flags_result.scalar() or 0
+
+    sessions_with_flags_result = await db.execute(
+        select(func.count(func.distinct(ProctoringFlag.session_id)))
+    )
+    sessions_with_flags = sessions_with_flags_result.scalar() or 0
 
     return {
         "platform": {
@@ -127,11 +133,11 @@ async def get_score_distribution(
 @router.get("/proctoring-stats")
 async def get_proctoring_stats(
     user: UserAccount = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Proctoring flag statistics."""
-    all_flags = []
-    for flags in _flag_store.values():
-        all_flags.extend(flags)
+    """Proctoring flag statistics from PostgreSQL."""
+    result = await db.execute(select(ProctoringFlag))
+    all_flags = result.scalars().all()
 
     if not all_flags:
         return {"total_flags": 0, "by_type": {}, "by_severity": {}}
@@ -139,12 +145,9 @@ async def get_proctoring_stats(
     by_type: dict[str, int] = {}
     by_severity: dict[str, int] = {}
     for f in all_flags:
-        ftype = f.get("type", "unknown")
-        severity = f.get("severity", "unknown")
-        by_type[ftype] = by_type.get(ftype, 0) + 1
-        by_severity[severity] = by_severity.get(severity, 0) + 1
+        by_type[f.flag_type] = by_type.get(f.flag_type, 0) + 1
+        by_severity[f.severity] = by_severity.get(f.severity, 0) + 1
 
-    # Sort by count descending
     by_type = dict(sorted(by_type.items(), key=lambda x: x[1], reverse=True))
     by_severity = dict(sorted(by_severity.items(), key=lambda x: x[1], reverse=True))
 

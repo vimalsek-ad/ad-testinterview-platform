@@ -5,6 +5,11 @@ from src.models.team import Team, TeamMembership
 from src.models.question import Question, TestCase
 from src.models.assessment import Assessment, AssessmentQuestion, CandidateSession
 from src.models.submission import CodeSubmission
+from src.models.proctoring import ProctoringFlag
+from src.models.review import ReviewDecision
+from src.models.audit import AuditLog
+from src.models.notification import Notification
+from src.models.interview_response import InterviewResponse
 
 __all__ = [
     "UserAccount",
@@ -16,4 +21,9 @@ __all__ = [
     "AssessmentQuestion",
     "CandidateSession",
     "CodeSubmission",
+    "ProctoringFlag",
+    "ReviewDecision",
+    "AuditLog",
+    "Notification",
+    "InterviewResponse",
 ]
