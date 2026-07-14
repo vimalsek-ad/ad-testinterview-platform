@@ -1,4 +1,4 @@
-# Developer Setup & Testing Guide
+# Developer Setup Guide
 
 Complete step-by-step guide to clone, run, and test the AD Hire platform locally.
 
