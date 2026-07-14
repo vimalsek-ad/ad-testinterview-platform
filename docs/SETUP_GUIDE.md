@@ -16,9 +16,9 @@ Before you begin, ensure you have these installed:
 | Git | Latest | `git --version` | `brew install git` |
 | AWS CLI | v2 | `aws --version` | `brew install awscli` |
 
-**Optional (for full AI pipeline):**
-- AWS credentials (for S3 + Transcribe)
-- LiteLLM API key (for AI scoring)
+**Required for AI pipeline:**
+- AWS credentials (for S3 + Transcribe) — get via `aws sso login`
+- LiteLLM API key (for AI scoring) — contact team lead for the key
 
 ---
 
@@ -88,26 +88,28 @@ JWT_SECRET_KEY=a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-# Code Execution (Judge0 via RapidAPI — get free key at https://rapidapi.com/judge0-official/api/judge0-ce)
+# Code Execution (Judge0 via RapidAPI — key stored in GitHub repo variables)
 JUDGE0_URL=https://judge0-ce.p.rapidapi.com
-RAPIDAPI_KEY=<your-rapidapi-key>
+RAPIDAPI_KEY=79fe4fc2c3msh4e697d295f921ccp16aef1jsn4a3655ff7006
 RAPIDAPI_HOST=judge0-ce.p.rapidapi.com
 
 # Redis
 REDIS_URL=redis://localhost:6379
 
-# AI Scoring (LiteLLM — optional, needed for interview AI scoring)
+# AI Scoring (LiteLLM Gateway — key stored in GitHub repo variables)
 LLM_GATEWAY_URL=https://litellm.alterdomus.cloud/v1
 LLM_GATEWAY_MODEL=eu.claude-4.8-opus
 LLM_GATEWAY_FALLBACK_MODEL=eu.claude-5-sonnet
-LLM_GATEWAY_TOKEN=<your-litellm-key>
+LLM_GATEWAY_TOKEN=sk-X5bdGnltkP6ulS_q7gB2Fg
 LLM_GATEWAY_ORG_ID=
 
-# AWS (optional — for video transcription)
+# AWS (S3 + Transcribe — Account: 757077150128, Region: eu-central-1)
+# Get temporary credentials via: aws sso login --profile AdministratorAccess-757077150128
+# Then export AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN from the session
 AWS_REGION=eu-central-1
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_SESSION_TOKEN=
+AWS_ACCESS_KEY_ID=<from-aws-sso-login>
+AWS_SECRET_ACCESS_KEY=<from-aws-sso-login>
+AWS_SESSION_TOKEN=<from-aws-sso-login>
 S3_RECORDINGS_BUCKET=ad-interview-recordings
 TRANSCRIBE_LANGUAGE_CODE=en-US
 
