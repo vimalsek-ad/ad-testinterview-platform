@@ -35,7 +35,7 @@ export default function Questions() {
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
   const [tags, setTags] = useState("");
-  const [languages, setLanguages] = useState("python");
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["python"]);
 
   // Test case form state
   const [tcInput, setTcInput] = useState("");
@@ -72,10 +72,10 @@ export default function Questions() {
         description,
         difficulty,
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-        supported_languages: languages.split(",").map((l) => l.trim()).filter(Boolean),
+        supported_languages: selectedLanguages,
         type: "coding",
       });
-      setTitle(""); setDescription(""); setDifficulty("medium"); setTags(""); setLanguages("python");
+      setTitle(""); setDescription(""); setDifficulty("medium"); setTags(""); setSelectedLanguages(["python"]);
       setShowCreateForm(false);
       loadQuestions();
     } catch (err: any) {
@@ -258,13 +258,46 @@ export default function Questions() {
                 onChange={(e) => setTags(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-700 text-white rounded border border-gray-600"
               />
-              <input
-                type="text"
-                placeholder="Languages (comma-separated, e.g., python, javascript, java)"
-                value={languages}
-                onChange={(e) => setLanguages(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 text-white rounded border border-gray-600"
-              />
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Supported Languages (select one or more):</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "python", label: "Python" },
+                    { id: "javascript", label: "JavaScript" },
+                    { id: "java", label: "Java" },
+                    { id: "cpp", label: "C++" },
+                    { id: "c", label: "C" },
+                    { id: "go", label: "Go" },
+                    { id: "ruby", label: "Ruby" },
+                    { id: "rust", label: "Rust" },
+                    { id: "typescript", label: "TypeScript" },
+                    { id: "csharp", label: "C#" },
+                  ].map((lang) => (
+                    <label
+                      key={lang.id}
+                      className={`flex items-center gap-2 px-3 py-2 rounded cursor-pointer text-sm ${
+                        selectedLanguages.includes(lang.id)
+                          ? "bg-blue-900/50 border border-blue-500 text-blue-300"
+                          : "bg-gray-700 border border-gray-600 text-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedLanguages.includes(lang.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedLanguages([...selectedLanguages, lang.id]);
+                          } else {
+                            setSelectedLanguages(selectedLanguages.filter((l) => l !== lang.id));
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+                      {lang.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="flex gap-2 justify-end mt-4">
               <button type="button" onClick={() => setShowCreateForm(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
