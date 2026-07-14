@@ -192,6 +192,8 @@ export default function Assessment() {
   }
 
   if (submitted) {
+    // Stop proctoring (camera + mic) when assessment is done
+    proctoringRef.current?.stop();
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="bg-gray-800 p-8 rounded-lg text-center max-w-md">

@@ -176,6 +176,35 @@ export default function Review() {
                 </div>
               )}
 
+              {/* Interview Responses */}
+              {selectedCandidate.interview_responses.length > 0 && (
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <h3 className="font-semibold mb-3">🎬 Interview Responses ({selectedCandidate.interview_responses.length})</h3>
+                  {selectedCandidate.interview_responses.map((resp: any) => (
+                    <div key={resp.id} className="border border-gray-700 rounded p-3 mb-2">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-300">Question: {resp.question_id?.substring(0, 8)}...</span>
+                        <span className="text-gray-500">{new Date(resp.submitted_at).toLocaleString()}</span>
+                      </div>
+                      {resp.transcription && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-400 mb-1">📝 Transcription:</p>
+                          <p className="text-sm text-gray-300 bg-gray-900 p-2 rounded">{resp.transcription}</p>
+                        </div>
+                      )}
+                      {resp.ai_score && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-400">AI Score: <span className="text-blue-400 font-bold">{resp.ai_score}%</span></p>
+                        </div>
+                      )}
+                      {!resp.transcription && (
+                        <p className="text-xs text-yellow-400 mt-1">⏳ Transcription processing...</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Proctoring */}
               <div className="bg-gray-800 rounded-lg p-4">
                 <h3 className="font-semibold mb-3">
