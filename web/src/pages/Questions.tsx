@@ -175,47 +175,60 @@ export default function Questions() {
                 </pre>
               </div>
 
-              {/* Test Cases */}
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold">
-                  Test Cases ({questionDetail.test_cases?.length || 0})
-                </h3>
-                <button
-                  onClick={() => setShowAddTestCase(true)}
-                  className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm"
-                >
-                  + Add Test Case
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {questionDetail.test_cases?.map((tc: TestCase, idx: number) => (
-                  <div key={tc.id} className="bg-gray-800 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-300">
-                        Test Case #{idx + 1}
-                      </span>
-                      <div className="flex gap-2">
-                        {tc.is_hidden ? (
-                          <span className="text-xs px-2 py-0.5 rounded bg-orange-900 text-orange-300">Hidden</span>
-                        ) : (
-                          <span className="text-xs px-2 py-0.5 rounded bg-blue-900 text-blue-300">Visible</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Input:</p>
-                        <pre className="bg-gray-900 px-3 py-2 rounded text-sm text-green-300">{tc.input_data}</pre>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Expected Output:</p>
-                        <pre className="bg-gray-900 px-3 py-2 rounded text-sm text-blue-300">{tc.expected_output}</pre>
-                      </div>
-                    </div>
+              {/* Test Cases — only for coding questions */}
+              {questionDetail.type === "coding" && (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold">
+                      Test Cases ({questionDetail.test_cases?.length || 0})
+                    </h3>
+                    <button
+                      onClick={() => setShowAddTestCase(true)}
+                      className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm"
+                    >
+                      + Add Test Case
+                    </button>
                   </div>
-                ))}
-              </div>
+
+                  <div className="space-y-3">
+                    {questionDetail.test_cases?.map((tc: TestCase, idx: number) => (
+                      <div key={tc.id} className="bg-gray-800 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-300">
+                            Test Case #{idx + 1}
+                          </span>
+                          <div className="flex gap-2">
+                            {tc.is_hidden ? (
+                              <span className="text-xs px-2 py-0.5 rounded bg-orange-900 text-orange-300">Hidden</span>
+                            ) : (
+                              <span className="text-xs px-2 py-0.5 rounded bg-blue-900 text-blue-300">Visible</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Input:</p>
+                            <pre className="bg-gray-900 px-3 py-2 rounded text-sm text-green-300">{tc.input_data}</pre>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Expected Output:</p>
+                            <pre className="bg-gray-900 px-3 py-2 rounded text-sm text-blue-300">{tc.expected_output}</pre>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Interview question info */}
+              {questionDetail.type === "interview" && (
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold mb-2">🎬 Interview Response Settings</h3>
+                  <p className="text-gray-400 text-sm">Candidate will record a video response (webcam + audio) for this question.</p>
+                  <p className="text-gray-400 text-sm mt-2">No test cases needed — response is evaluated by AI scoring or human review.</p>
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center text-gray-500 mt-20">
