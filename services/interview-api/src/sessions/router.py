@@ -167,6 +167,7 @@ async def start_session(session_token: str, db: AsyncSession = Depends(get_db)):
         questions.append({
             "id": str(q.id),
             "title": q.title,
+            "type": q.type,
             "description": q.description,
             "difficulty": q.difficulty,
             "supported_languages": q.supported_languages,

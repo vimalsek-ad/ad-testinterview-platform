@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { api } from "../lib/api";
 import type { ProctoringFlag } from "../proctoring/types";
+import VideoRecorder from "../components/VideoRecorder";
 
 interface TestCase {
   input: string;
@@ -14,6 +15,7 @@ interface Question {
   title: string;
   description: string;
   difficulty: string;
+  type: string;  // "coding" | "interview"
   supported_languages: string[];
   test_cases: TestCase[];
 }
@@ -316,65 +318,110 @@ export default function Assessment() {
           )}
         </div>
 
-        {/* Right Panel — Editor + Results */}
+        {/* Right Panel — Code Editor OR Video Recorder based on question type */}
         <div className="flex-1 flex flex-col">
-          {/* Code Editor */}
-          <div className="flex-1">
-            <Editor
-              height="100%"
-              language={language}
-              value={code}
-              onChange={(val) => setCode(val || "")}
-              theme="vs-dark"
-              options={{
-                fontSize: 14,
-                minimap: { enabled: false },
-                automaticLayout: true,
-                padding: { top: 12 },
-                bracketPairColorization: { enabled: true },
-              }}
-            />
-          </div>
+          {question?.type === "interview" ? (
+            /* ─── Interview Question: Video Recorder ─── */
+            <div className="flex-1 flex flex-col items-center justify-center p-6">
+              <h3 className="text-lg font-semibold mb-2 text-gray-300">🎬 Record Your Answer</h3>
+              <p className="text-gray-400 text-sm mb-6 text-center">
+                Speak clearly and look at the camera. Your response will be transcribed and scored by AI.
+              </p>
+              <VideoRecorder
+                maxDurationSeconds={180}
+                maxAttempts={3}
+                onSubmit={async (blob) => {
+                  // Upload video recording
+                  const formData = new FormData();
+                  formData.append("file", blob, `response_${question.id}.webm`);
+                  formData.append("question_id", question.id);
+                  formData.append("session_id", session.session_id);
+                  try {
+                    await api.post("/api/v1/interview/responses", formData, {
+                      headers: { "Content-Type": "multipart/form-data" },
+                    });
+                    // Mark as submitted and move to next question
+                    const newSubmitted = new Set(submittedQuestions);
+                    newSubmitted.add(question.id);
+                    setSubmittedQuestions(newSubmitted);
+                    setQuestionScores({ ...questionScores, [question.id]: 100 }); // placeholder until AI scores
 
-          {/* Results Panel */}
-          <div className="h-[200px] border-t border-gray-700 bg-gray-850 overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-800">
-              <span className="text-sm text-gray-400">
-                {results.length > 0
-                  ? `Results: ${results.filter((r) => r.passed).length}/${results.length} passed`
-                  : "Run your code to see results"}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRun}
-                  disabled={isRunning || !code}
-                  className="px-4 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white text-sm rounded font-medium transition"
-                >
-                  {isRunning ? "Running..." : "▶ Run"}
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !code}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm rounded font-medium transition"
-                >
-                  {isSubmitting ? "Submitting..." : "Submit"}
-                </button>
+                    if (newSubmitted.size >= questions.length) {
+                      const avgScore = Object.values({ ...questionScores, [question.id]: 100 })
+                        .reduce((a, b) => a + b, 0) / questions.length;
+                      setScore(avgScore);
+                      setSubmitted(true);
+                    } else {
+                      const nextIdx = questions.findIndex((q, idx) => idx > currentQ && !newSubmitted.has(q.id));
+                      if (nextIdx !== -1) { setCurrentQ(nextIdx); setCode(""); setResults([]); }
+                    }
+                  } catch (err: any) {
+                    setError("Failed to upload recording");
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            /* ─── Coding Question: Monaco Editor + Run/Submit ─── */
+            <>
+              <div className="flex-1">
+                <Editor
+                  height="100%"
+                  language={language}
+                  value={code}
+                  onChange={(val) => setCode(val || "")}
+                  theme="vs-dark"
+                  options={{
+                    fontSize: 14,
+                    minimap: { enabled: false },
+                    automaticLayout: true,
+                    padding: { top: 12 },
+                    bracketPairColorization: { enabled: true },
+                  }}
+                />
               </div>
-            </div>
-            <div className="px-4 py-2">
-              {error && <div className="text-red-400 text-sm mb-2">{error}</div>}
-              {results.map((r, idx) => (
-                <div key={idx} className="flex items-center gap-3 py-1.5 border-b border-gray-700/50 text-sm">
-                  <span className="text-lg">{r.passed ? "✅" : "❌"}</span>
-                  <span className="text-gray-300">Test {r.test_case_index + 1}</span>
-                  <span className={r.passed ? "text-green-400" : "text-red-400"}>
-                    {r.status}
+
+              {/* Results Panel */}
+              <div className="h-[200px] border-t border-gray-700 bg-gray-850 overflow-y-auto">
+                <div className="flex items-center justify-between px-4 py-2 bg-gray-800">
+                  <span className="text-sm text-gray-400">
+                    {results.length > 0
+                      ? `Results: ${results.filter((r) => r.passed).length}/${results.length} passed`
+                      : "Run your code to see results"}
                   </span>
-                  {r.time && <span className="text-gray-500 ml-auto">{r.time}s</span>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleRun}
+                      disabled={isRunning || !code}
+                      className="px-4 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white text-sm rounded font-medium transition"
+                    >
+                      {isRunning ? "Running..." : "▶ Run"}
+                    </button>
+                    <button
+                      onClick={handleSubmit}
+                      disabled={isSubmitting || !code}
+                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm rounded font-medium transition"
+                    >
+                      {isSubmitting ? "Submitting..." : "Submit"}
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="px-4 py-2">
+                  {error && <div className="text-red-400 text-sm mb-2">{error}</div>}
+                  {results.map((r, idx) => (
+                    <div key={idx} className="flex items-center gap-3 py-1.5 border-b border-gray-700/50 text-sm">
+                      <span className="text-lg">{r.passed ? "✅" : "❌"}</span>
+                      <span className="text-gray-300">Test {r.test_case_index + 1}</span>
+                      <span className={r.passed ? "text-green-400" : "text-red-400"}>
+                        {r.status}
+                      </span>
+                      {r.time && <span className="text-gray-500 ml-auto">{r.time}s</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
