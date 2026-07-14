@@ -10,6 +10,8 @@ from src.config.database import create_tables
 from src.auth.router import router as auth_router
 from src.questions.router import router as questions_router
 from src.sessions.router import router as sessions_router
+from src.teams.router import router as teams_router
+from src.proctoring.router import router as proctoring_router
 
 
 @asynccontextmanager
@@ -46,5 +48,7 @@ async def health():
 
 # ─── Register Routers ─────────────────────────────────────────
 app.include_router(auth_router)
+app.include_router(teams_router)
 app.include_router(questions_router)
 app.include_router(sessions_router)
+app.include_router(proctoring_router)

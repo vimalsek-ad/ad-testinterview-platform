@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { api } from "../lib/api";
+import { ProctoringSDK } from "../proctoring/ProctoringSDK";
+import { ProctoringFlag } from "../proctoring/types";
 
 interface TestCase {
   input: string;
@@ -40,6 +42,10 @@ export default function Assessment() {
   const [score, setScore] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [error, setError] = useState("");
+  const [proctoringFlags, setProctoringFlags] = useState<ProctoringFlag[]>([]);
+  const [proctoringWarning, setProctoringWarning] = useState("");
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
+  const proctoringRef = useRef<ProctoringSDK | null>(null);
 
   // Load session
   useEffect(() => {
@@ -49,11 +55,26 @@ export default function Assessment() {
         setSession(res.data);
         setQuestions(res.data.questions);
         setTimeLeft(res.data.time_limit_minutes * 60);
+
+        // Start proctoring after session loads
+        const sdk = new ProctoringSDK({
+          sessionId: res.data.session_id,
+          level: "basic", // basic = face + audio; full = also fullscreen lock
+          faceCheckIntervalMs: 3000,
+          gazeAwayThresholdMs: 10000,
+          speechThresholdMs: 5000,
+          onFlag: (flag) => setProctoringFlags((prev) => [...prev, flag]),
+          onWarning: (msg) => setProctoringWarning(msg),
+        });
+        proctoringRef.current = sdk;
+        const video = await sdk.start();
+        if (video) setVideoEl(video);
       } catch (err: any) {
         setError("Session not found or expired");
       }
     }
     loadSession();
+    return () => { proctoringRef.current?.stop(); };
   }, [token]);
 
   // Timer
@@ -155,8 +176,25 @@ export default function Assessment() {
           <span className="text-sm text-gray-400">
             Q{currentQ + 1}/{questions.length}
           </span>
+          {proctoringFlags.length > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded bg-red-900 text-red-300">
+              🚨 {proctoringFlags.length} flag{proctoringFlags.length > 1 ? "s" : ""}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-4">
+          {/* Camera Preview */}
+          {videoEl && (
+            <div className="w-16 h-12 rounded overflow-hidden border border-gray-600">
+              <video
+                ref={(el) => { if (el && videoEl) { el.srcObject = videoEl.srcObject; el.play(); } }}
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
+                playsInline
+              />
+            </div>
+          )}
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
@@ -171,6 +209,14 @@ export default function Assessment() {
           </div>
         </div>
       </div>
+
+      {/* Proctoring Warning */}
+      {proctoringWarning && (
+        <div className="bg-yellow-900/80 border-b border-yellow-600 px-4 py-2 text-yellow-200 text-sm text-center">
+          {proctoringWarning}
+          <button onClick={() => setProctoringWarning("")} className="ml-4 text-yellow-400">✕</button>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">

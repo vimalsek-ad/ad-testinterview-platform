@@ -33,6 +33,9 @@ export default function Dashboard() {
       <div className="border-b border-gray-700 px-6 py-4 flex items-center justify-between">
         <h1 className="text-xl font-bold">🎯 Interview Platform</h1>
         <div className="flex items-center gap-4">
+          <button onClick={() => navigate("/teams")} className="text-blue-400 hover:underline text-sm">Teams</button>
+          <button onClick={() => navigate("/questions")} className="text-blue-400 hover:underline text-sm">Questions</button>
+          <button onClick={() => navigate("/assessments")} className="text-blue-400 hover:underline text-sm">Assessments</button>
           <span className="text-gray-400">{user.display_name} ({user.email})</span>
           <button onClick={handleLogout} className="text-red-400 hover:underline text-sm">Logout</button>
         </div>

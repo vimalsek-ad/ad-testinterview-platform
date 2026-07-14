@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Assessment from "./pages/Assessment";
+import Teams from "./pages/Teams";
+import Questions from "./pages/Questions";
+import Assessments from "./pages/Assessments";
 
 function App() {
   return (
@@ -9,6 +12,9 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/teams" element={<Teams />} />
+        <Route path="/questions" element={<Questions />} />
+        <Route path="/assessments" element={<Assessments />} />
         <Route path="/assessment/:token" element={<Assessment />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
