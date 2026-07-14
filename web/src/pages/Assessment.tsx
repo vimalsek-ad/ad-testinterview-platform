@@ -41,6 +41,8 @@ export default function Assessment() {
   const [score, setScore] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [error, setError] = useState("");
+  const [submittedQuestions, setSubmittedQuestions] = useState<Set<string>>(new Set());
+  const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
   const [proctoringFlags, setProctoringFlags] = useState<ProctoringFlag[]>([]);
   const [proctoringWarning, setProctoringWarning] = useState("");
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
@@ -129,9 +131,42 @@ export default function Assessment() {
         source_code: code,
         language,
       });
-      setScore(res.data.score);
-      setSubmitted(true);
+
+      // Mark this question as submitted
+      const newSubmitted = new Set(submittedQuestions);
+      newSubmitted.add(questions[currentQ].id);
+      setSubmittedQuestions(newSubmitted);
+      setQuestionScores({ ...questionScores, [questions[currentQ].id]: res.data.score });
       setResults(res.data.results);
+
+      // If all questions submitted → show completion
+      if (newSubmitted.size >= questions.length) {
+        const avgScore = Object.values({ ...questionScores, [questions[currentQ].id]: res.data.score })
+          .reduce((a, b) => a + b, 0) / questions.length;
+        setScore(avgScore);
+        setSubmitted(true);
+      } else {
+        // Navigate to next unsubmitted question
+        const nextIdx = questions.findIndex((q, idx) => idx > currentQ && !newSubmitted.has(q.id));
+        if (nextIdx !== -1) {
+          setCurrentQ(nextIdx);
+          setCode("");
+          setResults([]);
+        } else {
+          // All remaining were already submitted — find any unsubmitted
+          const anyUnsubmitted = questions.findIndex((q) => !newSubmitted.has(q.id));
+          if (anyUnsubmitted !== -1) {
+            setCurrentQ(anyUnsubmitted);
+            setCode("");
+            setResults([]);
+          } else {
+            const avgScore = Object.values({ ...questionScores, [questions[currentQ].id]: res.data.score })
+              .reduce((a, b) => a + b, 0) / questions.length;
+            setScore(avgScore);
+            setSubmitted(true);
+          }
+        }
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Submission failed");
     }
@@ -158,12 +193,20 @@ export default function Assessment() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="bg-gray-800 p-8 rounded-lg text-center max-w-md">
-          <h1 className="text-3xl font-bold text-white mb-4">✅ Submitted!</h1>
-          <p className="text-gray-300 mb-4">Your assessment has been recorded.</p>
-          <div className="text-5xl font-bold text-blue-400 mb-2">{score?.toFixed(0)}%</div>
-          <p className="text-gray-400">
-            {results.filter((r) => r.passed).length}/{results.length} tests passed
-          </p>
+          <h1 className="text-3xl font-bold text-white mb-4">✅ Assessment Complete!</h1>
+          <p className="text-gray-300 mb-4">All {questions.length} questions submitted.</p>
+          <div className="text-5xl font-bold text-blue-400 mb-4">{score?.toFixed(0)}%</div>
+          <p className="text-gray-400 mb-4">Average score across all questions</p>
+          <div className="space-y-2 text-left">
+            {questions.map((q, idx) => (
+              <div key={q.id} className="flex justify-between text-sm bg-gray-700 px-3 py-2 rounded">
+                <span className="text-gray-300">Q{idx + 1}: {q.title}</span>
+                <span className={questionScores[q.id] >= 70 ? "text-green-400" : "text-red-400"}>
+                  {questionScores[q.id]?.toFixed(0) || 0}%
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -224,6 +267,26 @@ export default function Assessment() {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
+        {/* Question Navigation Sidebar */}
+        <div className="w-12 bg-gray-800 border-r border-gray-700 flex flex-col items-center py-2 gap-1">
+          {questions.map((q, idx) => (
+            <button
+              key={q.id}
+              onClick={() => { setCurrentQ(idx); setResults([]); if (!submittedQuestions.has(q.id)) setCode(""); }}
+              className={`w-8 h-8 rounded text-xs font-bold flex items-center justify-center ${
+                idx === currentQ
+                  ? "bg-blue-600 text-white"
+                  : submittedQuestions.has(q.id)
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+              }`}
+              title={`${q.title} ${submittedQuestions.has(q.id) ? '✓' : ''}`}
+            >
+              {idx + 1}
+            </button>
+          ))}
+        </div>
+
         {/* Left Panel — Question */}
         <div className="w-[35%] p-4 overflow-y-auto border-r border-gray-700">
           <h2 className="text-xl font-bold mb-2">{question?.title}</h2>
