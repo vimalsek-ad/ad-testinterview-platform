@@ -218,8 +218,8 @@ export default function CandidateReview() {
     <div className="p-6 text-white" ref={reportRef}>
       {/* Back + Actions */}
       <div className="flex items-center justify-between mb-6">
-        <button onClick={() => navigate("/dashboard")} className="text-gray-400 hover:text-white text-sm">
-          ← Back to Dashboard
+        <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white text-sm">
+          ← Back to Candidates
         </button>
         <button
           onClick={exportPDF}
