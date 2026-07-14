@@ -15,6 +15,10 @@ from src.proctoring.router import router as proctoring_router
 from src.interviews.router import router as interviews_router
 from src.scoring.router import router as scoring_router
 from src.reviews.router import router as reviews_router
+from src.audit.router import router as audit_router
+from src.notifications.router import router as notifications_router
+from src.reporting.router import router as reporting_router
+from src.audit.middleware import AuditMiddleware
 
 
 @asynccontextmanager
@@ -42,6 +46,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Audit Trail — logs all mutations automatically
+app.add_middleware(AuditMiddleware)
+
 
 # ─── Health Endpoints ─────────────────────────────────────────
 @app.get("/health", include_in_schema=False)
@@ -58,3 +65,6 @@ app.include_router(proctoring_router)
 app.include_router(interviews_router)
 app.include_router(scoring_router)
 app.include_router(reviews_router)
+app.include_router(audit_router)
+app.include_router(notifications_router)
+app.include_router(reporting_router)
