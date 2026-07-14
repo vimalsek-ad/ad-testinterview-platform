@@ -60,25 +60,6 @@ export default function Assessment() {
         setSession(res.data);
         setQuestions(res.data.questions);
         setTimeLeft(res.data.time_limit_minutes * 60);
-
-        // Start proctoring (dynamic import to avoid crash if MediaPipe fails)
-        try {
-          const { ProctoringSDK } = await import("../proctoring/ProctoringSDK");
-          const sdk = new ProctoringSDK({
-            sessionId: res.data.session_id,
-            level: "basic",
-            faceCheckIntervalMs: 3000,
-            gazeAwayThresholdMs: 10000,
-            speechThresholdMs: 5000,
-            onFlag: (flag: ProctoringFlag) => setProctoringFlags((prev) => [...prev, flag]),
-            onWarning: (msg: string) => setProctoringWarning(msg),
-          });
-          proctoringRef.current = sdk;
-          const video = await sdk.start();
-          if (video) setVideoEl(video);
-        } catch (procErr) {
-          console.warn("Proctoring initialization failed (non-critical):", procErr);
-        }
       } catch (err: any) {
         setError("Session not found or expired");
       }
@@ -86,6 +67,33 @@ export default function Assessment() {
     loadSession();
     return () => { proctoringRef.current?.stop(); };
   }, [token]);
+
+  // Start proctoring AFTER system check passes
+  useEffect(() => {
+    if (!readyToStart || !session) return;
+
+    async function startProctoring() {
+      try {
+        const { ProctoringSDK } = await import("../proctoring/ProctoringSDK");
+        const sdk = new ProctoringSDK({
+          sessionId: session.session_id,
+          level: "basic",
+          faceCheckIntervalMs: 3000,
+          gazeAwayThresholdMs: 10000,
+          speechThresholdMs: 5000,
+          onFlag: (flag: ProctoringFlag) => setProctoringFlags((prev) => [...prev, flag]),
+          onWarning: (msg: string) => setProctoringWarning(msg),
+        });
+        proctoringRef.current = sdk;
+        const video = await sdk.start();
+        if (video) setVideoEl(video);
+        console.log("[Assessment] Proctoring started successfully");
+      } catch (procErr) {
+        console.warn("[Assessment] Proctoring initialization failed:", procErr);
+      }
+    }
+    startProctoring();
+  }, [readyToStart, session]);
 
   // Timer
   useEffect(() => {
