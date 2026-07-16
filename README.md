@@ -243,7 +243,7 @@ Video Recording → S3 Upload → AWS Transcribe → LLM Scoring
 
 ## Demo Recording
 
-🎬 [Watch the full platform demo (SharePoint)](https://alterdomusgroup-my.sharepoint.com/:v:/g/personal/vimal_s_alterdomus_com/IQDlBiwB_ST3SY2-7fzPVMv3AeRUYVT5PpX_nk2FIPb566g?e=19OQjI)
+🎬 [Watch the full platform demo (SharePoint)](https://alterdomusgroup-my.sharepoint.com/:v:/g/personal/vimal_s_alterdomus_com/IQDlBiwB_ST3SY2-7fzPVMv3AUWOm-w_zv2YLqQs_nR9tU4?e=DEbgeg)
 
 📁 Local recording: [`docs/Demo_recording.webm`](docs/Demo_recording.webm)
 
